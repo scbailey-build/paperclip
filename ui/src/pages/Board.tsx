@@ -7,8 +7,8 @@ import { projectsApi } from "../api/projects";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
-import { cn, issueUrl } from "../lib/utils";
-import { useNavigate } from "../lib/router";
+import { cn } from "../lib/utils";
+import { BoardCardPeek } from "../components/BoardCardPeek";
 
 /**
  * The Board — the floor where agents work. Five universal stages; cards are
@@ -57,7 +57,7 @@ export function Board() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const [departmentId, setDepartmentId] = useState<string>("all");
-  const navigate = useNavigate();
+  const [peekIssueId, setPeekIssueId] = useState<string | null>(null);
 
   useEffect(() => {
     setBreadcrumbs([{ label: "Board" }]);
@@ -194,7 +194,7 @@ export function Board() {
                     <button
                       key={issue.id}
                       type="button"
-                      onClick={() => navigate(issueUrl(issue))}
+                      onClick={() => setPeekIssueId(issue.id)}
                       className={cn(
                         "block w-full border border-ops-line bg-ops-bg-raised p-ops-2 text-left hover:border-ops-ink-muted",
                         stalled && "border-l-2 border-l-ops-signal",
@@ -245,6 +245,9 @@ export function Board() {
         })}
       </div>
 
+      {peekIssueId && (
+        <BoardCardPeek issueId={peekIssueId} onClose={() => setPeekIssueId(null)} />
+      )}
     </div>
   );
 }
