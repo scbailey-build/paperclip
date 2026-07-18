@@ -37,7 +37,7 @@ type Decision =
   | { kind: "approval"; approval: Approval }
   | { kind: "review_gate"; issue: Issue };
 
-function approvalField(approval: Approval, keys: string[]): string | null {
+export function approvalField(approval: Approval, keys: string[]): string | null {
   for (const key of keys) {
     const value = approval.payload?.[key];
     if (typeof value === "string" && value.trim()) return value;
@@ -45,12 +45,12 @@ function approvalField(approval: Approval, keys: string[]): string | null {
   return null;
 }
 
-function approvalIssueIds(approval: Approval): string[] {
+export function approvalIssueIds(approval: Approval): string[] {
   const value = approval.payload?.issueIds;
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
 }
 
-function isCooRecommendation(approval: Approval): boolean {
+export function isCooRecommendation(approval: Approval): boolean {
   // First-class type since v1.1; payload.kind covers pre-enum recommendations.
   return approval.type === "coo_recommendation" || approval.payload?.kind === "coo_recommendation";
 }

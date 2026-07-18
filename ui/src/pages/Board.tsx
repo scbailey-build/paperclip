@@ -39,13 +39,60 @@ function toTime(value: Date | string | null | undefined): number {
 }
 
 /** A done card counts as Shipped only with terminal delivery evidence. */
-function isShippedEvidence(products: IssueWorkProduct[]): boolean {
+export function isShippedEvidence(products: IssueWorkProduct[]): boolean {
   return products.some(
     (product) =>
       product.status === "merged" ||
       product.status === "approved" ||
       (product.status === "active" && product.type !== "pull_request" && product.type !== "branch"),
   );
+}
+
+/** Project the five universal stages from issue statuses + shipped evidence. */
+export function deriveBoardColumns(
+  visible: Issue[],
+  shippedIds: Set<string>,
+  now: number,
+): Record<ColumnKey, Issue[]> {
+  const byColumn: Record<ColumnKey, Issue[]> = {
+    queued: [],
+    in_progress: [],
+    review_gate: [],
+    approved: [],
+    shipped: [],
+  };
+  for (const issue of visible) {
+    if (issue.status === "backlog" || issue.status === "todo") byColumn.queued.push(issue);
+    else if (issue.status === "in_progress" || issue.status === "blocked")
+      byColumn.in_progress.push(issue);
+    else if (issue.status === "in_review") byColumn.review_gate.push(issue);
+    else if (issue.status === "done")
+      (shippedIds.has(issue.id) ? byColumn.shipped : byColumn.approved).push(issue);
+  }
+  for (const key of Object.keys(byColumn) as ColumnKey[]) {
+    byColumn[key].sort((a, b) => {
+      const stallDelta = Number(isStalled(b, now)) - Number(isStalled(a, now));
+      if (stallDelta !== 0) return stallDelta;
+      const priorityDelta = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9);
+      if (priorityDelta !== 0) return priorityDelta;
+      return toTime(b.updatedAt) - toTime(a.updatedAt);
+    });
+  }
+  return byColumn;
+}
+
+/** Per-department WIP check for the In Progress column. */
+export function findWipBreach(
+  cards: Issue[],
+  wipLimit: number,
+): { projectId: string; count: number } | null {
+  const wipByProject = new Map<string, number>();
+  for (const issue of cards) {
+    if (issue.status !== "in_progress" || !issue.projectId) continue;
+    wipByProject.set(issue.projectId, (wipByProject.get(issue.projectId) ?? 0) + 1);
+  }
+  const over = [...wipByProject.entries()].find(([, count]) => count > wipLimit);
+  return over ? { projectId: over[0], count: over[1] } : null;
 }
 
 export function Board() {
@@ -110,35 +157,10 @@ export function Board() {
     return set;
   }, [doneIssues, workProductQueries]);
 
-  const columns = useMemo(() => {
-    const now = Date.now();
-    const byColumn: Record<ColumnKey, Issue[]> = {
-      queued: [],
-      in_progress: [],
-      review_gate: [],
-      approved: [],
-      shipped: [],
-    };
-    for (const issue of visible) {
-      if (issue.status === "backlog" || issue.status === "todo") byColumn.queued.push(issue);
-      else if (issue.status === "in_progress" || issue.status === "blocked")
-        byColumn.in_progress.push(issue);
-      else if (issue.status === "in_review") byColumn.review_gate.push(issue);
-      else if (issue.status === "done")
-        (shippedIds.has(issue.id) ? byColumn.shipped : byColumn.approved).push(issue);
-    }
-    for (const key of Object.keys(byColumn) as ColumnKey[]) {
-      byColumn[key].sort((a, b) => {
-        const stallDelta = Number(isStalled(b, now)) - Number(isStalled(a, now));
-        if (stallDelta !== 0) return stallDelta;
-        const priorityDelta =
-          (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9);
-        if (priorityDelta !== 0) return priorityDelta;
-        return toTime(b.updatedAt) - toTime(a.updatedAt);
-      });
-    }
-    return byColumn;
-  }, [visible, shippedIds]);
+  const columns = useMemo(
+    () => deriveBoardColumns(visible, shippedIds, Date.now()),
+    [visible, shippedIds],
+  );
 
   const now = Date.now();
 
@@ -167,19 +189,12 @@ export function Board() {
           const cards = columns[column.key];
           // WIP is a per-department limit: check each department's in-progress
           // count, not the mixed column total.
-          const wipByProject = new Map<string, number>();
-          for (const issue of cards) {
-            if (issue.status !== "in_progress" || !issue.projectId) continue;
-            wipByProject.set(issue.projectId, (wipByProject.get(issue.projectId) ?? 0) + 1);
-          }
-          const overEntry =
-            column.key === "in_progress"
-              ? [...wipByProject.entries()].find(([, count]) => count > WIP_LIMIT)
-              : undefined;
-          const overWip = overEntry !== undefined;
+          const breach = column.key === "in_progress" ? findWipBreach(cards, WIP_LIMIT) : null;
+          const overWip = breach !== null;
           const overName =
-            overEntry &&
-            ((projects ?? []) as Project[]).find((project) => project.id === overEntry[0])?.name;
+            breach &&
+            ((projects ?? []) as Project[]).find((project) => project.id === breach.projectId)
+              ?.name;
           return (
             <div key={column.key} className="flex min-w-52 flex-1 shrink-0 flex-col">
               <div
@@ -195,8 +210,8 @@ export function Board() {
                     overWip ? "font-ops-accent text-ops-signal" : "text-ops-ink-muted",
                   )}
                 >
-                  {overWip && overEntry
-                    ? `${overName ?? "department"} ${overEntry[1]}/${WIP_LIMIT} over limit`
+                  {breach
+                    ? `${overName ?? "department"} ${breach.count}/${WIP_LIMIT} over limit`
                     : cards.length}
                 </span>
               </div>
