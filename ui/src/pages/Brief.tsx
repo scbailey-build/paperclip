@@ -44,6 +44,11 @@ function approvalField(approval: Approval, keys: string[]): string | null {
   return null;
 }
 
+function approvalIssueIds(approval: Approval): string[] {
+  const value = approval.payload?.issueIds;
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+}
+
 export function Brief() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
@@ -101,10 +106,37 @@ export function Brief() {
   };
 
   const decideApproval = useMutation({
-    mutationFn: ({ id, decision }: { id: string; decision: "approve" | "override" }) =>
-      decision === "approve"
-        ? approvalsApi.approve(id, "Approved from the Brief.")
-        : approvalsApi.reject(id, "Overridden from the Brief."),
+    mutationFn: async ({
+      approval,
+      decision,
+    }: {
+      approval: Approval;
+      decision: "approve" | "override";
+    }) => {
+      if (decision === "override") {
+        return approvalsApi.reject(approval.id, "Overridden from the Brief.");
+      }
+      const result = await approvalsApi.approve(approval.id, "Approved from the Brief.");
+      // Approving a COO gate recommendation advances the card in the same tap
+      // — the board-sanctioned action the recommendation asked for.
+      if (
+        approval.payload?.kind === "coo_recommendation" &&
+        approval.payload?.rule === "gate_aging"
+      ) {
+        const gated = (issues ?? []).filter(
+          (issue) => approvalIssueIds(approval).includes(issue.id) && issue.status === "in_review",
+        );
+        await Promise.all(
+          gated.map((issue) =>
+            issuesApi.update(issue.id, {
+              status: "done",
+              comment: "Approved via COO recommendation from the Brief.",
+            }),
+          ),
+        );
+      }
+      return result;
+    },
     onSettled: invalidate,
   });
 
@@ -139,8 +171,15 @@ export function Brief() {
     const now = Date.now();
     const stallCutoff = now - STALL_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
 
+    // Cards already covered by a pending COO recommendation don't get a second
+    // raw row — the recommendation is the richer version of the same decision.
+    const coveredByCoo = new Set(
+      (pendingApprovals ?? [])
+        .filter((approval) => approval.payload?.kind === "coo_recommendation")
+        .flatMap((approval) => approvalIssueIds(approval)),
+    );
     const reviewGate = all
-      .filter((issue) => issue.status === "in_review")
+      .filter((issue) => issue.status === "in_review" && !coveredByCoo.has(issue.id))
       .sort((a, b) => toTime(a.updatedAt) - toTime(b.updatedAt));
 
     const decisionList: Decision[] = [
@@ -219,7 +258,7 @@ export function Brief() {
                     <button
                       type="button"
                       disabled={decideApproval.isPending}
-                      onClick={() => decideApproval.mutate({ id: approval.id, decision: "approve" })}
+                      onClick={() => decideApproval.mutate({ approval, decision: "approve" })}
                       className={cn(
                         "px-ops-3 py-ops-1 font-ops-accent",
                         isPrimary
@@ -232,7 +271,7 @@ export function Brief() {
                     <button
                       type="button"
                       disabled={decideApproval.isPending}
-                      onClick={() => decideApproval.mutate({ id: approval.id, decision: "override" })}
+                      onClick={() => decideApproval.mutate({ approval, decision: "override" })}
                       className="border border-ops-line px-ops-3 py-ops-1 hover:bg-ops-bg-raised"
                     >
                       Override
