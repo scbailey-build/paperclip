@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Agent, Approval, Issue } from "@paperclipai/shared";
+import type { Agent, Approval, BudgetIncident, Issue } from "@paperclipai/shared";
 import { approvalsApi } from "../api/approvals";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
+import { budgetsApi } from "../api/budgets";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
@@ -99,6 +100,12 @@ export function Brief() {
     enabled: !!selectedCompanyId,
   });
 
+  const { data: budgets } = useQuery({
+    queryKey: queryKeys.budgets.overview(selectedCompanyId!),
+    queryFn: () => budgetsApi.overview(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
   const agentNames = useMemo(() => {
     const map = new Map<string, string>();
     for (const agent of (agents ?? []) as Agent[]) map.set(agent.id, agent.name);
@@ -168,7 +175,7 @@ export function Brief() {
     },
   });
 
-  const { decisions, moving, risk } = useMemo(() => {
+  const { decisions, moving, risk, budgetRisk } = useMemo(() => {
     const all = issues ?? [];
     const now = Date.now();
     const stallCutoff = now - STALL_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
@@ -205,8 +212,19 @@ export function Brief() {
       )
       .sort((a, b) => toTime(a.updatedAt) - toTime(b.updatedAt));
 
-    return { decisions: decisionList, moving: movingList, risk: stalled[0] ?? null };
-  }, [issues, pendingApprovals, since]);
+    // Flagged priority: an active budget incident outranks a stall — a
+    // breach pauses work automatically, a stall just sits.
+    const incidents = (budgets?.activeIncidents ?? []) as BudgetIncident[];
+    const budgetRisk =
+      incidents.find((incident) => incident.thresholdType === "hard") ?? incidents[0] ?? null;
+
+    return {
+      decisions: decisionList,
+      moving: movingList,
+      risk: stalled[0] ?? null,
+      budgetRisk,
+    };
+  }, [issues, pendingApprovals, since, budgets]);
 
   const loading = approvalsLoading || issuesLoading;
 
@@ -367,8 +385,30 @@ export function Brief() {
       {/* 3 — One flagged risk or stall */}
       <section className="mt-ops-8 pb-ops-12">
         <h2 className="font-ops-accent text-ops-ink-muted">Flagged</h2>
-        {!loading && !risk && <p className="mt-ops-3">Nothing stalled, nothing at risk.</p>}
-        {risk && (
+        {!loading && !risk && !budgetRisk && (
+          <p className="mt-ops-3">Nothing stalled, nothing at risk.</p>
+        )}
+        {budgetRisk && (
+          <div className="mt-ops-3 border-l-2 border-ops-signal bg-ops-signal-soft py-ops-2 pl-ops-3 pr-ops-3">
+            <p className="font-ops-accent">
+              {budgetRisk.scopeName} {budgetRisk.thresholdType === "hard" ? "hit its budget hard stop" : "crossed its budget warn line"}
+            </p>
+            <p className="mt-ops-1 text-ops-ink-muted">
+              ${(budgetRisk.amountObserved / 100).toFixed(0)} of $
+              {(budgetRisk.amountLimit / 100).toFixed(0)} spent this window
+              {budgetRisk.thresholdType === "hard" ? " — work is paused until you act." : "."}
+            </p>
+            <div className="mt-ops-2">
+              <Link
+                to="/costs"
+                className="inline-block border border-ops-line px-ops-3 py-ops-1 font-ops-accent hover:bg-ops-bg"
+              >
+                Open budgets
+              </Link>
+            </div>
+          </div>
+        )}
+        {!budgetRisk && risk && (
           <div className="mt-ops-3 border-l-2 border-ops-signal bg-ops-signal-soft py-ops-2 pl-ops-3 pr-ops-3">
             <Link to={issueUrl(risk)} className="font-ops-accent hover:underline">
               {risk.title}
