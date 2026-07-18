@@ -1,0 +1,130 @@
+/*
+ * Operator tokens — the design constitution for the dashboard rebuild.
+ *
+ * Hard rules these tokens enforce:
+ *   - Neutral palette: white / near-white background, near-black text.
+ *   - ONE accent color (`ops-accent`), used only for the primary action on a
+ *     screen and for live status. Nothing else may use it.
+ *   - ONE signal color (`ops-signal`, warm/urgent), reserved exclusively for
+ *     stalled and blocked states. Nothing else may use it.
+ *   - Max two type sizes per screen (`ops-title`, `ops-body`) plus one accent
+ *     weight (`--ops-weight-accent`). `ops-detail` exists for dense metadata
+ *     rows and counts as the second size when a screen uses it with ops-body.
+ *   - Spacing comes from the `--ops-space-*` scale. No ad-hoc values.
+ *   - Motion only to explain state change: one duration, one easing.
+ *
+ * Rebuilt screens (Brief, Board, Workflows, Skills and their details) use
+ * these tokens exclusively. Legacy screens keep the shadcn semantic variables
+ * in index.css until they are rebuilt, so nothing breaks in the interim.
+ */
+
+:root {
+  /* Surfaces & ink — neutral only */
+  --ops-bg: oklch(0.995 0 0);
+  --ops-bg-raised: oklch(0.975 0 0);
+  --ops-ink: oklch(0.17 0 0);
+  --ops-ink-muted: oklch(0.52 0 0);
+  --ops-line: oklch(0.925 0 0);
+
+  /* Accent — primary action + live status ONLY */
+  --ops-accent: oklch(0.5 0.19 259);
+  --ops-accent-ink: oklch(0.99 0 0);
+  --ops-accent-soft: oklch(0.96 0.02 259);
+
+  /* Signal — stalled / blocked ONLY */
+  --ops-signal: oklch(0.6 0.18 40);
+  --ops-signal-ink: oklch(0.99 0 0);
+  --ops-signal-soft: oklch(0.96 0.03 40);
+
+  /* Type — two sizes per screen + one accent weight */
+  --ops-text-title: 1.125rem;
+  --ops-text-title--line-height: 1.35;
+  --ops-text-body: 0.875rem;
+  --ops-text-body--line-height: 1.5;
+  --ops-text-detail: 0.75rem;
+  --ops-text-detail--line-height: 1.4;
+  --ops-weight-normal: 400;
+  --ops-weight-accent: 600;
+
+  /* Spacing scale */
+  --ops-space-1: 0.25rem;
+  --ops-space-2: 0.5rem;
+  --ops-space-3: 0.75rem;
+  --ops-space-4: 1rem;
+  --ops-space-6: 1.5rem;
+  --ops-space-8: 2rem;
+  --ops-space-12: 3rem;
+
+  /* Motion — state change only, never decorative */
+  --ops-motion-duration: 200ms;
+  --ops-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+  --ops-bg: oklch(0.15 0 0);
+  --ops-bg-raised: oklch(0.2 0 0);
+  --ops-ink: oklch(0.97 0 0);
+  --ops-ink-muted: oklch(0.68 0 0);
+  --ops-line: oklch(0.28 0 0);
+
+  --ops-accent: oklch(0.68 0.15 259);
+  --ops-accent-ink: oklch(0.15 0 0);
+  --ops-accent-soft: oklch(0.26 0.05 259);
+
+  --ops-signal: oklch(0.68 0.16 40);
+  --ops-signal-ink: oklch(0.15 0 0);
+  --ops-signal-soft: oklch(0.26 0.06 40);
+}
+
+/* Expose as Tailwind utilities: bg-ops-*, text-ops-*, border-ops-line,
+   text-ops-title/body/detail, font-ops-accent via font-[var(...)] etc. */
+@theme inline {
+  --color-ops-bg: var(--ops-bg);
+  --color-ops-bg-raised: var(--ops-bg-raised);
+  --color-ops-ink: var(--ops-ink);
+  --color-ops-ink-muted: var(--ops-ink-muted);
+  --color-ops-line: var(--ops-line);
+  --color-ops-accent: var(--ops-accent);
+  --color-ops-accent-ink: var(--ops-accent-ink);
+  --color-ops-accent-soft: var(--ops-accent-soft);
+  --color-ops-signal: var(--ops-signal);
+  --color-ops-signal-ink: var(--ops-signal-ink);
+  --color-ops-signal-soft: var(--ops-signal-soft);
+  --text-ops-title: var(--ops-text-title);
+  --text-ops-title--line-height: var(--ops-text-title--line-height);
+  --text-ops-body: var(--ops-text-body);
+  --text-ops-body--line-height: var(--ops-text-body--line-height);
+  --text-ops-detail: var(--ops-text-detail);
+  --text-ops-detail--line-height: var(--ops-text-detail--line-height);
+  --spacing-ops-1: var(--ops-space-1);
+  --spacing-ops-2: var(--ops-space-2);
+  --spacing-ops-3: var(--ops-space-3);
+  --spacing-ops-4: var(--ops-space-4);
+  --spacing-ops-6: var(--ops-space-6);
+  --spacing-ops-8: var(--ops-space-8);
+  --spacing-ops-12: var(--ops-space-12);
+}
+
+/* State-change motion primitive: applied when a card advances, an approval
+   lands, or a decision clears. The only sanctioned animation. */
+@keyframes ops-state-change {
+  from {
+    background-color: var(--ops-accent-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.ops-state-change {
+  animation: ops-state-change var(--ops-motion-duration) var(--ops-motion-ease);
+}
+
+/* Stalled pulse: loud by presence (signal color + sort order), not by motion.
+   No keyframes — stalled must be visually loud even for reduced-motion users. */
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-state-change {
+    animation: none;
+  }
+}
