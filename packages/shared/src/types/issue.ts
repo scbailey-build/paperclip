@@ -402,6 +402,8 @@ export interface Issue {
   hiddenAt: Date | null;
   labelIds?: string[];
   labels?: IssueLabel[];
+  /** Keys of issue documents (e.g. "plan"), attached on list/detail responses. */
+  documentKeys?: string[];
   blockedBy?: IssueRelationIssueSummary[];
   blocks?: IssueRelationIssueSummary[];
   blockerAttention?: IssueBlockerAttention;

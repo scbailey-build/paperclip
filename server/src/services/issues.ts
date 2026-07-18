@@ -255,7 +255,11 @@ type IssueScheduledRetryRow = {
   error?: string | null;
   errorCode?: string | null;
 };
-type IssueWithLabels = IssueRow & { labels: IssueLabelRow[]; labelIds: string[] };
+type IssueWithLabels = IssueRow & {
+  labels: IssueLabelRow[];
+  labelIds: string[];
+  documentKeys: string[];
+};
 type IssueWithLabelsAndRun = IssueWithLabels & { activeRun: IssueActiveRunRow | null };
 type IssueUserCommentStats = {
   issueId: string;
@@ -794,15 +798,41 @@ async function labelMapForIssues(dbOrTx: any, issueIds: string[]): Promise<Map<s
   return map;
 }
 
+async function documentKeyMapForIssues(
+  dbOrTx: any,
+  issueIds: string[],
+): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (issueIds.length === 0) return map;
+  for (const issueIdChunk of chunkList(issueIds, ISSUE_LIST_RELATED_QUERY_CHUNK_SIZE)) {
+    const rows = await dbOrTx
+      .select({ issueId: issueDocuments.issueId, key: issueDocuments.key })
+      .from(issueDocuments)
+      .where(inArray(issueDocuments.issueId, issueIdChunk))
+      .orderBy(asc(issueDocuments.key));
+    for (const row of rows) {
+      const existing = map.get(row.issueId);
+      if (existing) existing.push(row.key);
+      else map.set(row.issueId, [row.key]);
+    }
+  }
+  return map;
+}
+
 async function withIssueLabels(dbOrTx: any, rows: IssueRow[]): Promise<IssueWithLabels[]> {
   if (rows.length === 0) return [];
-  const labelsByIssueId = await labelMapForIssues(dbOrTx, rows.map((row) => row.id));
+  const issueIds = rows.map((row) => row.id);
+  const [labelsByIssueId, documentKeysByIssueId] = await Promise.all([
+    labelMapForIssues(dbOrTx, issueIds),
+    documentKeyMapForIssues(dbOrTx, issueIds),
+  ]);
   return rows.map((row) => {
     const issueLabels = labelsByIssueId.get(row.id) ?? [];
     return {
       ...row,
       labels: issueLabels,
       labelIds: issueLabels.map((label) => label.id),
+      documentKeys: documentKeysByIssueId.get(row.id) ?? [],
     };
   });
 }

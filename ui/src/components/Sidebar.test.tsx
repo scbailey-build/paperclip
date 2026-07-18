@@ -152,11 +152,14 @@ describe("Sidebar", () => {
 
   it("shows the Workspaces link when isolated workspaces are enabled", async () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableIsolatedWorkspaces: true });
+    // Workspaces lives in the System section, collapsed by default.
+    localStorage.setItem("paperclip.sidebar.systemOpen", "1");
     const root = await renderSidebar();
 
     const link = [...container.querySelectorAll("a")].find((anchor) => anchor.textContent === "Workspaces");
     expect(link?.getAttribute("href")).toBe("/workspaces");
 
+    localStorage.removeItem("paperclip.sidebar.systemOpen");
     await act(async () => {
       root.unmount();
     });

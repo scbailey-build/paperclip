@@ -77,6 +77,7 @@ import {
 } from "../services/index.js";
 import { logger } from "../middleware/logger.js";
 import { conflict, forbidden, HttpError, notFound, unauthorized, unprocessable } from "../errors.js";
+import { isRecommendOnly } from "../services/agent-permissions.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import {
   assertNoAgentHostWorkspaceCommandMutation,
@@ -822,6 +823,36 @@ export function issueRoutes(
   const router = Router();
   const svc = issueService(db);
   const access = accessService(db);
+
+  // Recommend-only agents (permissions.recommendOnly, e.g. the COO) read
+  // everything but may not touch any issue write surface — their only output
+  // channel is approvals. Complete mediation for issue-surface writes.
+  router.use(async (req, res, next) => {
+    try {
+      const method = req.method.toUpperCase();
+      if (method === "GET" || method === "HEAD" || method === "OPTIONS") return next();
+      // Routers share one mount point, so this middleware sees every API
+      // request — scope the guard to issue surfaces only (approvals must
+      // stay open: they are the recommend-only agent's output channel).
+      const path = req.path;
+      const isIssueSurface =
+        path.startsWith("/issues/") ||
+        path.startsWith("/work-products/") ||
+        path.startsWith("/labels/") ||
+        /^\/companies\/[^/]+\/(issues|labels)(\/|$)/.test(path);
+      if (!isIssueSurface) return next();
+      if (req.actor?.type !== "agent" || !req.actor.agentId) return next();
+      const actorAgent = await agentsSvc.getById(req.actor.agentId);
+      if (actorAgent && isRecommendOnly(actorAgent.permissions)) {
+        throw forbidden(
+          "Recommend-only agent: issue writes are denied; post recommendations as approvals instead",
+        );
+      }
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  });
   const heartbeat = heartbeatService(db, {
     pluginWorkerManager: opts.pluginWorkerManager,
   });

@@ -3,6 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "./components/Layout";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { CloudAccessGate } from "./components/CloudAccessGate";
+import { Board } from "./pages/Board";
+import { Brief } from "./pages/Brief";
+import { Skills } from "./pages/Skills";
+import { Workflows } from "./pages/Workflows";
+import { WorkflowDetail } from "./pages/WorkflowDetail";
 import { Dashboard } from "./pages/Dashboard";
 import { DashboardLive } from "./pages/DashboardLive";
 import { Companies } from "./pages/Companies";
@@ -61,7 +66,11 @@ import { shouldRedirectCompanylessRouteToOnboarding } from "./lib/onboarding-rou
 function boardRoutes() {
   return (
     <>
-      <Route index element={<Navigate to="dashboard" replace />} />
+      <Route index element={<Navigate to="brief" replace />} />
+      <Route path="brief" element={<Brief />} />
+      <Route path="board" element={<Board />} />
+      <Route path="workflows" element={<Workflows />} />
+      <Route path="workflows/:goalId" element={<WorkflowDetail />} />
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="dashboard/live" element={<DashboardLive />} />
       <Route path="onboarding" element={<OnboardingRoutePage />} />
@@ -73,6 +82,7 @@ function boardRoutes() {
       <Route path="company/export/*" element={<CompanyExport />} />
       <Route path="company/import" element={<CompanyImport />} />
       <Route path="company/settings/secrets" element={<Secrets />} />
+      <Route path="skills" element={<Skills />} />
       <Route path="skills/*" element={<CompanySkills />} />
       <Route path="settings" element={<LegacySettingsRedirect />} />
       <Route path="settings/*" element={<LegacySettingsRedirect />} />
@@ -210,7 +220,7 @@ function CompanyRootRedirect() {
     return <NoCompaniesStartPage />;
   }
 
-  return <Navigate to={`/${targetCompany.issuePrefix}/dashboard`} replace />;
+  return <Navigate to={`/${targetCompany.issuePrefix}/brief`} replace />;
 }
 
 function UnprefixedBoardRedirect() {
@@ -286,6 +296,10 @@ export function App() {
             <Route path="adapters" element={<AdapterManager />} />
           </Route>
           <Route path="companies" element={<UnprefixedBoardRedirect />} />
+          <Route path="brief" element={<UnprefixedBoardRedirect />} />
+          <Route path="board" element={<UnprefixedBoardRedirect />} />
+          <Route path="workflows" element={<UnprefixedBoardRedirect />} />
+          <Route path="workflows/:goalId" element={<UnprefixedBoardRedirect />} />
           <Route path="issues" element={<UnprefixedBoardRedirect />} />
           <Route path="issues/:issueId" element={<UnprefixedBoardRedirect />} />
           <Route path="routines" element={<UnprefixedBoardRedirect />} />

@@ -41,6 +41,7 @@ export function CompanySettings() {
   const [companyName, setCompanyName] = useState("");
   const [description, setDescription] = useState("");
   const [brandColor, setBrandColor] = useState("");
+  const [notificationWebhookUrl, setNotificationWebhookUrl] = useState("");
   const [attachmentMaxMiB, setAttachmentMaxMiB] = useState(String(DEFAULT_COMPANY_ATTACHMENT_MAX_MIB));
   const [logoUrl, setLogoUrl] = useState("");
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export function CompanySettings() {
     setCompanyName(selectedCompany.name);
     setDescription(selectedCompany.description ?? "");
     setBrandColor(selectedCompany.brandColor ?? "");
+    setNotificationWebhookUrl(selectedCompany.notificationWebhookUrl ?? "");
     setAttachmentMaxMiB(String(Math.round((selectedCompany.attachmentMaxBytes ?? DEFAULT_COMPANY_ATTACHMENT_MAX_BYTES) / BYTES_PER_MIB)));
     setLogoUrl(selectedCompany.logoUrl ?? "");
   }, [selectedCompany]);
@@ -71,6 +73,7 @@ export function CompanySettings() {
     (companyName !== selectedCompany.name ||
       description !== (selectedCompany.description ?? "") ||
       brandColor !== (selectedCompany.brandColor ?? "") ||
+      notificationWebhookUrl !== (selectedCompany.notificationWebhookUrl ?? "") ||
       attachmentMaxBytes !== (selectedCompany.attachmentMaxBytes ?? DEFAULT_COMPANY_ATTACHMENT_MAX_BYTES));
 
   const generalMutation = useMutation({
@@ -78,6 +81,7 @@ export function CompanySettings() {
       name: string;
       description: string | null;
       brandColor: string | null;
+      notificationWebhookUrl: string | null;
       attachmentMaxBytes: number;
     }) => companiesApi.update(selectedCompanyId!, data),
     onSuccess: () => {
@@ -232,6 +236,7 @@ export function CompanySettings() {
       name: companyName.trim(),
       description: description.trim() || null,
       brandColor: brandColor || null,
+      notificationWebhookUrl: notificationWebhookUrl.trim() || null,
       attachmentMaxBytes
     });
   }
@@ -267,6 +272,18 @@ export function CompanySettings() {
               value={description}
               placeholder="Optional company description"
               onChange={(e) => setDescription(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Notification webhook"
+            hint="Slack-compatible webhook URL. Only budget breaches and hard blockers notify; everything else waits for the Brief."
+          >
+            <input
+              className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
+              type="url"
+              value={notificationWebhookUrl}
+              placeholder="https://hooks.slack.com/services/…"
+              onChange={(e) => setNotificationWebhookUrl(e.target.value)}
             />
           </Field>
         </div>

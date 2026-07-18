@@ -217,6 +217,9 @@ function decodeSkillFilePath(filePath: string | undefined) {
 
 function parseSkillRoute(routePath: string | undefined) {
   const segments = (routePath ?? "").split("/").filter(Boolean);
+  // "/skills/library" is the library list — the bare "/skills" index now
+  // belongs to the operator Skills view.
+  if (segments[0] === "library") segments.shift();
   if (segments.length === 0) {
     return { skillId: null, filePath: "SKILL.md" };
   }
@@ -1063,7 +1066,7 @@ export function CompanySkills() {
         queryKey: queryKeys.companySkills.list(selectedCompanyId!),
         type: "active",
       });
-      navigate("/skills", { replace: true });
+      navigate("/skills/library", { replace: true });
       pushToast({
         tone: "success",
         title: "Skill removed",

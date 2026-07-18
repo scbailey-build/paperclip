@@ -33,6 +33,7 @@ export const updateCompanySchema = createCompanySchema
     feedbackDataSharingConsentByUserId: z.string().min(1).nullable().optional(),
     feedbackDataSharingTermsVersion: feedbackDataSharingTermsVersionSchema,
     brandColor: brandColorSchema,
+    notificationWebhookUrl: z.string().url().max(2048).nullable().optional(),
     logoAssetId: logoAssetIdSchema,
     attachmentMaxBytes: attachmentMaxBytesSchema.optional(),
   });
