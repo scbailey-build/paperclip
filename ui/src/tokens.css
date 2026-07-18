@@ -96,6 +96,8 @@
   --text-ops-body--line-height: var(--ops-text-body--line-height);
   --text-ops-detail: var(--ops-text-detail);
   --text-ops-detail--line-height: var(--ops-text-detail--line-height);
+  --font-weight-ops-normal: var(--ops-weight-normal);
+  --font-weight-ops-accent: var(--ops-weight-accent);
   --spacing-ops-1: var(--ops-space-1);
   --spacing-ops-2: var(--ops-space-2);
   --spacing-ops-3: var(--ops-space-3);
