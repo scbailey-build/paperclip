@@ -239,6 +239,19 @@ export function Board() {
                       </div>
                       <p className="mt-ops-1 line-clamp-2">{issue.title}</p>
                       <div className="mt-ops-2 flex items-center gap-ops-2 text-ops-detail text-ops-ink-muted">
+                        <span
+                          className={cn(
+                            "shrink-0 border border-ops-line px-ops-1",
+                            (issue.documentKeys ?? []).includes("plan") && "font-ops-accent",
+                          )}
+                          title={
+                            (issue.documentKeys ?? []).includes("plan")
+                              ? "Plan drafted — open to review"
+                              : "No plan yet — open to request one"
+                          }
+                        >
+                          {(issue.documentKeys ?? []).includes("plan") ? "plan" : "no plan"}
+                        </span>
                         {owner ? (
                           <>
                             <span
