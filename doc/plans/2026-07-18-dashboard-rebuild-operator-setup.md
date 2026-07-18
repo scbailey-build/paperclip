@@ -31,13 +31,17 @@ load into working context on every run.
 Claude.ai cloud plugins are not importable this way (they are hosted, not files); export a
 plugin's prompts as markdown skills first if their content should live in Paperclip.
 
-## 3. Optional: Airtable board backup (archivist pattern)
+## 3. Optional: Airtable board backup (archivist agent)
 
-Same scaffolding as the COO: a script agent on a cron routine that reads the board via the
-API and pushes rows to Airtable using an API key stored as a company secret. Writes flow one
-way (Paperclip → Airtable) so the mirror can never conflict with the source of truth. Not
-yet built as a script — the session-side snapshot proved the shape (base: Cards table with
-identifier/column/status/priority/owner/department/workflow/plan/stalled/snapshot-at).
+`scripts/archivist/airtable-backup.mjs` — same scaffolding as the COO: a process-adapter
+agent (heartbeat cadence) that reads the board via the API and upserts one row per card to
+Airtable, keyed on Identifier. Idempotent; writes flow one way (Paperclip → Airtable) so the
+mirror can never conflict with the source of truth.
+
+Setup: create the Cards table (fields listed in the script header), store the Airtable
+personal access token as a company secret, and bind it into the agent's `adapterConfig.env`
+as `AIRTABLE_API_KEY` alongside `AIRTABLE_BASE_ID` and `AIRTABLE_TABLE`. Verify with
+`ARCHIVIST_DRY_RUN=1`, which prints the upsert plan without writing.
 
 ## 4. Demo-data conventions the screens rely on
 
