@@ -4,6 +4,7 @@ import {
   Target,
   Columns3,
   LayoutDashboard,
+  Workflow,
   Newspaper,
   DollarSign,
   History,
@@ -84,6 +85,7 @@ export function Sidebar() {
           </button>
           <SidebarNavItem to="/brief" label="Brief" icon={Newspaper} />
           <SidebarNavItem to="/board" label="Board" icon={Columns3} />
+          <SidebarNavItem to="/workflows" label="Workflows" icon={Workflow} />
           <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
           <SidebarNavItem
             to="/inbox"

@@ -5,6 +5,8 @@ import { OnboardingWizard } from "./components/OnboardingWizard";
 import { CloudAccessGate } from "./components/CloudAccessGate";
 import { Board } from "./pages/Board";
 import { Brief } from "./pages/Brief";
+import { Workflows } from "./pages/Workflows";
+import { WorkflowDetail } from "./pages/WorkflowDetail";
 import { Dashboard } from "./pages/Dashboard";
 import { DashboardLive } from "./pages/DashboardLive";
 import { Companies } from "./pages/Companies";
@@ -66,6 +68,8 @@ function boardRoutes() {
       <Route index element={<Navigate to="brief" replace />} />
       <Route path="brief" element={<Brief />} />
       <Route path="board" element={<Board />} />
+      <Route path="workflows" element={<Workflows />} />
+      <Route path="workflows/:goalId" element={<WorkflowDetail />} />
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="dashboard/live" element={<DashboardLive />} />
       <Route path="onboarding" element={<OnboardingRoutePage />} />
@@ -292,6 +296,8 @@ export function App() {
           <Route path="companies" element={<UnprefixedBoardRedirect />} />
           <Route path="brief" element={<UnprefixedBoardRedirect />} />
           <Route path="board" element={<UnprefixedBoardRedirect />} />
+          <Route path="workflows" element={<UnprefixedBoardRedirect />} />
+          <Route path="workflows/:goalId" element={<UnprefixedBoardRedirect />} />
           <Route path="issues" element={<UnprefixedBoardRedirect />} />
           <Route path="issues/:issueId" element={<UnprefixedBoardRedirect />} />
           <Route path="routines" element={<UnprefixedBoardRedirect />} />
