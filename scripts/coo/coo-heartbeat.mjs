@@ -240,14 +240,13 @@ async function main() {
 
   // Post recommendations as approvals — the Brief's Decisions section reads
   // title/situation/recommendation/costOfDecidingWrong from this payload.
-  // Approval `type` is a validated enum, so recommendations ride the existing
-  // request_board_approval type; payload.kind marks them as COO output.
   for (const rec of recommendations) {
     const { issueIds = [], ...payload } = rec;
     await post(`/companies/${COMPANY}/approvals`, {
-      type: "request_board_approval",
+      type: "coo_recommendation",
       ...(AGENT ? { requestedByAgentId: AGENT } : {}),
       issueIds,
+      // payload.kind stays for back-compat with pre-enum recommendations;
       // issueIds ride in the payload too so the Brief can act on the linked
       // cards (and suppress duplicate raw gate rows) without extra fetches.
       payload: { kind: "coo_recommendation", issueIds, ...payload },

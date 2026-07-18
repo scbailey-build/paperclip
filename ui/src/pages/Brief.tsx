@@ -49,6 +49,11 @@ function approvalIssueIds(approval: Approval): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
 }
 
+function isCooRecommendation(approval: Approval): boolean {
+  // First-class type since v1.1; payload.kind covers pre-enum recommendations.
+  return approval.type === "coo_recommendation" || approval.payload?.kind === "coo_recommendation";
+}
+
 export function Brief() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
@@ -119,10 +124,7 @@ export function Brief() {
       const result = await approvalsApi.approve(approval.id, "Approved from the Brief.");
       // Approving a COO gate recommendation advances the card in the same tap
       // — the board-sanctioned action the recommendation asked for.
-      if (
-        approval.payload?.kind === "coo_recommendation" &&
-        approval.payload?.rule === "gate_aging"
-      ) {
+      if (isCooRecommendation(approval) && approval.payload?.rule === "gate_aging") {
         const gated = (issues ?? []).filter(
           (issue) => approvalIssueIds(approval).includes(issue.id) && issue.status === "in_review",
         );
@@ -175,7 +177,7 @@ export function Brief() {
     // raw row — the recommendation is the richer version of the same decision.
     const coveredByCoo = new Set(
       (pendingApprovals ?? [])
-        .filter((approval) => approval.payload?.kind === "coo_recommendation")
+        .filter((approval) => isCooRecommendation(approval))
         .flatMap((approval) => approvalIssueIds(approval)),
     );
     const reviewGate = all

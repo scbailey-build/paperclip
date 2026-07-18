@@ -1,10 +1,12 @@
 export type NormalizedAgentPermissions = Record<string, unknown> & {
   canCreateAgents: boolean;
+  recommendOnly: boolean;
 };
 
 export function defaultPermissionsForRole(role: string): NormalizedAgentPermissions {
   return {
     canCreateAgents: role === "ceo",
+    recommendOnly: false,
   };
 }
 
@@ -23,5 +25,20 @@ export function normalizeAgentPermissions(
       typeof record.canCreateAgents === "boolean"
         ? record.canCreateAgents
         : defaults.canCreateAgents,
+    recommendOnly:
+      typeof record.recommendOnly === "boolean" ? record.recommendOnly : defaults.recommendOnly,
   };
+}
+
+/**
+ * Recommend-only agents (e.g. the COO) may read everything and create
+ * approvals, but every other write surface is denied at the route layer.
+ */
+export function isRecommendOnly(permissions: unknown): boolean {
+  return (
+    typeof permissions === "object" &&
+    permissions !== null &&
+    !Array.isArray(permissions) &&
+    (permissions as Record<string, unknown>).recommendOnly === true
+  );
 }
