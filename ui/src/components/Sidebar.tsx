@@ -2,6 +2,7 @@ import {
   Inbox,
   CircleDot,
   Target,
+  Columns3,
   LayoutDashboard,
   Newspaper,
   DollarSign,
@@ -82,6 +83,7 @@ export function Sidebar() {
             <span className="truncate">New Issue</span>
           </button>
           <SidebarNavItem to="/brief" label="Brief" icon={Newspaper} />
+          <SidebarNavItem to="/board" label="Board" icon={Columns3} />
           <SidebarNavItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} liveCount={liveRunCount} />
           <SidebarNavItem
             to="/inbox"

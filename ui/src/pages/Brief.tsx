@@ -188,7 +188,7 @@ export function Brief() {
           <div className="mt-ops-3">
             <p>Nothing needs a decision right now.</p>
             <Link
-              to="/issues"
+              to="/board"
               className="mt-ops-2 inline-block border border-ops-line px-ops-3 py-ops-1 font-ops-accent hover:bg-ops-bg-raised"
             >
               Open the Board
