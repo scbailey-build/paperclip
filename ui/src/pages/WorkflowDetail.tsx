@@ -10,7 +10,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { cn, relativeTime } from "../lib/utils";
 import { useParams } from "../lib/router";
 import { BoardCardPeek } from "../components/BoardCardPeek";
-import { isStalled } from "./Board";
+import { isStalled } from "../lib/stall";
 import { milestonesOf } from "./Workflows";
 
 /**

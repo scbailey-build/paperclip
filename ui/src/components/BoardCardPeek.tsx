@@ -8,6 +8,7 @@ import { cn, issueUrl, relativeTime } from "../lib/utils";
 import { Link } from "../lib/router";
 import { MarkdownBody } from "./MarkdownBody";
 import { REQUEST_PLAN_COMMENT } from "../lib/cardPlanTemplate";
+import { isStalled } from "../lib/stall";
 
 /**
  * Card peek: the plan-first drawer opened from a Board card. Shows the card's
@@ -24,6 +25,7 @@ export function BoardCardPeek({ issueId, onClose }: { issueId: string; onClose: 
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [confirmingKill, setConfirmingKill] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: issue } = useQuery({
@@ -50,6 +52,8 @@ export function BoardCardPeek({ issueId, onClose }: { issueId: string; onClose: 
     queryKey: queryKeys.issues.attachments(issueId),
     queryFn: () => issuesApi.listAttachments(issueId),
   });
+
+  const stalled = issue ? isStalled(issue, Date.now()) : false;
 
   const pendingConfirmation = (interactions ?? []).find(
     (interaction): interaction is IssueThreadInteraction =>
@@ -88,6 +92,22 @@ export function BoardCardPeek({ issueId, onClose }: { issueId: string; onClose: 
     onSettled: refresh,
   });
 
+  const restartIssue = useMutation({
+    mutationFn: () =>
+      issuesApi.update(issueId, { status: "todo", comment: "Restarted from the Board." }),
+    onSettled: refresh,
+  });
+
+  const killIssue = useMutation({
+    mutationFn: () =>
+      issuesApi.update(issueId, { status: "cancelled", comment: "Killed from the Board." }),
+    onSettled: () => {
+      setConfirmingKill(false);
+      refresh();
+      onClose();
+    },
+  });
+
   const uploadAttachment = useMutation({
     mutationFn: (file: File) => issuesApi.uploadAttachment(selectedCompanyId!, issueId, file),
     onSettled: () => {
@@ -120,6 +140,41 @@ export function BoardCardPeek({ issueId, onClose }: { issueId: string; onClose: 
           Close
         </button>
       </div>
+
+      {/* Stalled/blocked cards get exactly two actions: restart or kill. */}
+      {issue && stalled && (
+        <div className="flex items-center gap-ops-2 border-b border-l-2 border-ops-line border-l-ops-signal bg-ops-signal-soft p-ops-3">
+          <span className="font-ops-accent text-ops-signal">
+            {issue.status === "blocked" ? "Blocked" : "Stalled"} since {relativeTime(issue.updatedAt)}
+          </span>
+          <button
+            type="button"
+            disabled={restartIssue.isPending}
+            onClick={() => restartIssue.mutate()}
+            className="ml-auto border border-ops-line px-ops-3 py-ops-1 font-ops-accent hover:bg-ops-bg"
+          >
+            Restart
+          </button>
+          {confirmingKill ? (
+            <button
+              type="button"
+              disabled={killIssue.isPending}
+              onClick={() => killIssue.mutate()}
+              className="bg-ops-signal px-ops-3 py-ops-1 font-ops-accent text-ops-signal-ink"
+            >
+              Confirm kill
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingKill(true)}
+              className="border border-ops-line px-ops-3 py-ops-1 hover:bg-ops-bg"
+            >
+              Kill
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-ops-4">
         <div className="flex items-baseline justify-between">

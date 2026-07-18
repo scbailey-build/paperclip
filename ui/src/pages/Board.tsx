@@ -8,6 +8,7 @@ import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { cn } from "../lib/utils";
+import { isStalled } from "../lib/stall";
 import { BoardCardPeek } from "../components/BoardCardPeek";
 
 /**
@@ -18,7 +19,6 @@ import { BoardCardPeek } from "../components/BoardCardPeek";
  * Styling: operator tokens only. Two type sizes (body, detail) + accent weight.
  */
 
-const STALL_THRESHOLD_DAYS = 7;
 const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 const PRIORITY_GLYPH: Record<string, string> = { critical: "‼", high: "↑", medium: "·", low: "↓" };
 
@@ -34,13 +34,6 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
 
 function toTime(value: Date | string | null | undefined): number {
   return value ? new Date(value).getTime() : 0;
-}
-
-export function isStalled(issue: Issue, now: number): boolean {
-  return (
-    (issue.status === "in_progress" || issue.status === "blocked") &&
-    toTime(issue.updatedAt) < now - STALL_THRESHOLD_DAYS * 24 * 60 * 60 * 1000
-  );
 }
 
 /** A done card counts as Shipped only with terminal delivery evidence. */

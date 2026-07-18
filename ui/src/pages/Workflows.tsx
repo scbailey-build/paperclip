@@ -10,7 +10,7 @@ import { useDialogActions } from "../context/DialogContext";
 import { queryKeys } from "../lib/queryKeys";
 import { cn } from "../lib/utils";
 import { Link } from "../lib/router";
-import { isStalled } from "./Board";
+import { isStalled } from "../lib/stall";
 
 /**
  * Workflows — the primary object. A row shows exactly: name, current
