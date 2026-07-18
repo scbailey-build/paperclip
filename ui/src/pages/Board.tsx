@@ -62,7 +62,6 @@ export function Board() {
     queryKey: ["issues", selectedCompanyId, "board"] as const,
     queryFn: () => issuesApi.list(selectedCompanyId!, { limit: 250 }),
     enabled: !!selectedCompanyId,
-    refetchInterval: 30_000,
   });
 
   const { data: projects } = useQuery({

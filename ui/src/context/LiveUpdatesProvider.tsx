@@ -716,7 +716,10 @@ function invalidateActivityQueries(
   }
 
   if (entityType === "approval") {
-    queryClient.invalidateQueries({ queryKey: queryKeys.approvals.list(companyId) });
+    // Bare prefix so status-scoped lists (e.g. ["approvals", id, "pending"]
+    // on the Brief) invalidate too — a trailing `undefined` in the key from
+    // queryKeys.approvals.list(companyId) defeats partial matching.
+    queryClient.invalidateQueries({ queryKey: ["approvals", companyId] });
     return;
   }
 
