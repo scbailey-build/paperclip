@@ -1,7 +1,25 @@
 # Dashboard Rebuild — Operator Setup on a Real Instance
 
 Replays what was built and verified in the dev sandbox onto a production/local instance.
-Everything here uses existing endpoints; no backend changes.
+
+## Day-one checklist (after pulling master)
+
+```sh
+pnpm install && pnpm build
+pnpm db:migrate                      # applies 0085 (notification webhook column)
+pnpm paperclipai run                 # or pnpm dev
+```
+
+Then, in order:
+
+1. Open the app — it lands on **/brief**. Nav is Brief / Board / Workflows / Skills;
+   everything else is under System (collapsed) and Cmd+K.
+2. Create the **COO agent** (step 1 below) and set `permissions.recommendOnly: true` via
+   `PATCH /api/agents/:id/permissions` — the server then hard-denies it every issue write.
+3. Import your **skill library** (step 2 below).
+4. Create the **milestone label** once per company; agents label gate cards with it.
+5. Optional: set the **notification webhook** (Company Settings → General) — only budget
+   breaches and hard blockers notify. Optional: the **Airtable archivist** (step 3 below).
 
 ## 1. The COO agent
 
