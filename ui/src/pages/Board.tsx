@@ -20,6 +20,8 @@ import { BoardCardPeek } from "../components/BoardCardPeek";
  */
 
 const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+/** Default per-department WIP limit — keep in sync with the COO's COO_WIP_LIMIT. */
+const WIP_LIMIT = 5;
 const PRIORITY_GLYPH: Record<string, string> = { critical: "‼", high: "↑", medium: "·", low: "↓" };
 
 type ColumnKey = "queued" | "in_progress" | "review_gate" | "approved" | "shipped";
@@ -164,11 +166,40 @@ export function Board() {
       <div className="flex min-h-0 flex-1 gap-ops-3 overflow-x-auto px-ops-4 pb-ops-4">
         {COLUMNS.map((column) => {
           const cards = columns[column.key];
+          // WIP is a per-department limit: check each department's in-progress
+          // count, not the mixed column total.
+          const wipByProject = new Map<string, number>();
+          for (const issue of cards) {
+            if (issue.status !== "in_progress" || !issue.projectId) continue;
+            wipByProject.set(issue.projectId, (wipByProject.get(issue.projectId) ?? 0) + 1);
+          }
+          const overEntry =
+            column.key === "in_progress"
+              ? [...wipByProject.entries()].find(([, count]) => count > WIP_LIMIT)
+              : undefined;
+          const overWip = overEntry !== undefined;
+          const overName =
+            overEntry &&
+            ((projects ?? []) as Project[]).find((project) => project.id === overEntry[0])?.name;
           return (
             <div key={column.key} className="flex min-w-52 flex-1 shrink-0 flex-col">
-              <div className="flex items-baseline gap-ops-2 border-b border-ops-line pb-ops-2">
+              <div
+                className={cn(
+                  "flex items-baseline gap-ops-2 border-b pb-ops-2",
+                  overWip ? "border-ops-signal" : "border-ops-line",
+                )}
+              >
                 <span className="font-ops-accent">{column.label}</span>
-                <span className="text-ops-detail text-ops-ink-muted">{cards.length}</span>
+                <span
+                  className={cn(
+                    "text-ops-detail",
+                    overWip ? "font-ops-accent text-ops-signal" : "text-ops-ink-muted",
+                  )}
+                >
+                  {overWip && overEntry
+                    ? `${overName ?? "department"} ${overEntry[1]}/${WIP_LIMIT} over limit`
+                    : cards.length}
+                </span>
               </div>
               <div className="min-h-0 flex-1 space-y-ops-2 overflow-y-auto pt-ops-2">
                 {cards.length === 0 && (
