@@ -1,0 +1,1 @@
+ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "notification_webhook_url" text;

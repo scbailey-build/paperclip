@@ -18,6 +18,8 @@ export interface Company {
   feedbackDataSharingConsentByUserId: string | null;
   feedbackDataSharingTermsVersion: string | null;
   brandColor: string | null;
+  /** Slack-compatible webhook notified on budget breaches and hard blockers. */
+  notificationWebhookUrl: string | null;
   logoAssetId: string | null;
   logoUrl: string | null;
   createdAt: Date;

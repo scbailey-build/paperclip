@@ -29,6 +29,7 @@ import { logger } from "../../middleware/logger.js";
 import { redactCurrentUserText } from "../../log-redaction.js";
 import { redactSensitiveText } from "../../redaction.js";
 import { logActivity } from "../activity-log.js";
+import { outboundNotificationService } from "../outbound-notifications.js";
 import { budgetService } from "../budgets.js";
 import { instanceSettingsService } from "../instance-settings.js";
 import { issueRecoveryActionService } from "../issue-recovery-actions.js";
@@ -393,6 +394,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
   const recoveryActionsSvc = issueRecoveryActionService(db);
   const treeControlSvc = issueTreeControlService(db);
   const budgets = budgetService(db);
+  const notifier = outboundNotificationService(db);
   const instanceSettings = instanceSettingsService(db);
   const runLogStore = getRunLogStore();
 
@@ -2929,6 +2931,16 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
           projectWorkspaceSourceIssueId: recoveryIssue.id,
         },
       },
+    });
+
+    // Hard blockers are one of the two events allowed to notify the operator
+    // between visits (fire-and-forget; failures only log).
+    notifier.notifyCompanyInBackground(issue.companyId, {
+      kind: "hard_blocker",
+      entityType: "issue",
+      entityId: escalation.id,
+      title: `${issue.identifier ?? "A card"} is hard-blocked`,
+      text: `"${issue.title}" stopped making progress and was escalated (${escalation.identifier ?? escalation.id}). It stays blocked until the escalation resolves.`,
     });
 
     const wake = await deps.enqueueWakeup(ownerSelection.agentId, {

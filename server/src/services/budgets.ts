@@ -23,6 +23,7 @@ import type {
 } from "@paperclipai/shared";
 import { notFound, unprocessable } from "../errors.js";
 import { logActivity } from "./activity-log.js";
+import { outboundNotificationService } from "./outbound-notifications.js";
 
 type ScopeRecord = {
   companyId: string;
@@ -210,6 +211,8 @@ async function markApprovalStatus(
 }
 
 export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
+  const notifier = outboundNotificationService(db);
+
   async function pauseScopeForBudget(policy: PolicyRow) {
     const now = new Date();
     if (policy.scopeType === "agent") {
@@ -391,7 +394,7 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
         .then((rows) => rows[0] ?? null)
       : null;
 
-    return db
+    const incident = await db
       .insert(budgetIncidents)
       .values({
         companyId: policy.companyId,
@@ -410,6 +413,23 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
       })
       .returning()
       .then((rows) => rows[0] ?? null);
+
+    // Budget breaches are one of the two events allowed to notify the
+    // operator between visits (fire-and-forget; failures only log).
+    if (incident) {
+      const scopeName = normalizeScopeName(policy.scopeType as BudgetScopeType, scope.name);
+      notifier.notifyCompanyInBackground(policy.companyId, {
+        kind: "budget_breach",
+        entityType: "budget_incident",
+        entityId: incident.id,
+        title:
+          thresholdType === "hard"
+            ? `${scopeName} hit its budget hard stop`
+            : `${scopeName} crossed its budget warn line`,
+        text: `$${(amountObserved / 100).toFixed(0)} of $${(policy.amount / 100).toFixed(0)} spent this window${thresholdType === "hard" ? " — work is paused until you act." : "."}`,
+      });
+    }
+    return incident;
   }
 
   async function resolveOpenSoftIncidents(policyId: string) {
