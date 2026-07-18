@@ -47,6 +47,12 @@ issue ids. Dedup by fingerprint: never re-raised while pending or within 7 days 
 - **Config**: `COO_STALL_DAYS`, `COO_GATE_HOURS`, `COO_WIP_LIMIT`, `COO_BUDGET_WARN_PCT` env
   vars (production home: the COO routine's variables / adapter env).
 - **Cadence**: heartbeat scheduler; the Brief renders on demand. No push notifications in v1.
+- **Caveat — adapter re-invocation**: the process adapter re-runs a fast-exiting command
+  repeatedly within one heartbeat window (observed: 68 invocations in ~10s). The COO is safe
+  under this because fingerprint dedup makes re-runs no-ops, but any script agent without
+  idempotency will amplify (a loop-test agent created 67 duplicate cards this way). In
+  production prefer a cron routine cadence for script agents, and keep every script-agent
+  write idempotent.
 
 ## Loop test (performed live)
 
