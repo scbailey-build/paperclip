@@ -7,6 +7,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { cn, issueUrl, relativeTime } from "../lib/utils";
 import { Link } from "../lib/router";
 import { MarkdownBody } from "./MarkdownBody";
+import { REQUEST_PLAN_COMMENT } from "../lib/cardPlanTemplate";
 
 /**
  * Card peek: the plan-first drawer opened from a Board card. Shows the card's
@@ -83,11 +84,7 @@ export function BoardCardPeek({ issueId, onClose }: { issueId: string; onClose: 
   });
 
   const requestPlan = useMutation({
-    mutationFn: () =>
-      issuesApi.addComment(
-        issueId,
-        "Please draft a plan for this card as the issue document with key `plan` before starting work.",
-      ),
+    mutationFn: () => issuesApi.addComment(issueId, REQUEST_PLAN_COMMENT),
     onSettled: refresh,
   });
 
