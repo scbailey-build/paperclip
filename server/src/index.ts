@@ -958,6 +958,11 @@ export async function startServer(): Promise<StartedServer> {
         if (reviewed.created > 0 || reviewed.updated > 0 || reviewed.failed > 0) {
           logger.warn({ ...reviewed }, "startup productivity reconciliation created or updated review work");
         }
+
+        const improved = await heartbeat.reconcileImprovementProposals();
+        if (improved.created > 0 || improved.failed > 0) {
+          logger.warn({ ...improved }, "startup improvement reconciliation filed cross-issue improvement proposals");
+        }
       })().catch((err) => {
         logger.error({ err }, "startup heartbeat recovery failed");
       });
@@ -1090,6 +1095,12 @@ export async function startServer(): Promise<StartedServer> {
               const reviewed = await heartbeat.reconcileProductivityReviews();
               if (reviewed.created > 0 || reviewed.updated > 0 || reviewed.failed > 0) {
                 logger.warn({ ...reviewed }, "periodic productivity reconciliation created or updated review work");
+              }
+            })
+            .then(async () => {
+              const improved = await heartbeat.reconcileImprovementProposals();
+              if (improved.created > 0 || improved.failed > 0) {
+                logger.warn({ ...improved }, "periodic improvement reconciliation filed cross-issue improvement proposals");
               }
             })
             .catch((err) => {

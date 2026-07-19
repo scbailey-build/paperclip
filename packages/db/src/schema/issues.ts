@@ -164,5 +164,16 @@ export const issues = pgTable(
           and ${table.hiddenAt} is null
           and ${table.status} not in ('done', 'cancelled')`,
       ),
+    // Improvement proposals key on the recurring cause (carried in the
+    // fingerprint), not a single source issue, so re-sweeps of the same
+    // recurring problem are no-ops while an open proposal exists.
+    activeImprovementProposalIdx: uniqueIndex("issues_active_improvement_proposal_uq")
+      .on(table.companyId, table.originKind, table.originFingerprint)
+      .where(
+        sql`${table.originKind} = 'improvement_proposal'
+          and ${table.originFingerprint} <> 'default'
+          and ${table.hiddenAt} is null
+          and ${table.status} not in ('done', 'cancelled')`,
+      ),
   }),
 );
