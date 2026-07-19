@@ -120,6 +120,11 @@ test.describe.serial("dark-mode Apps surfaces", () => {
   test("sidebar says Apps and links to /apps", async ({ page }) => {
     await forceDark(page);
     await page.goto(`/${seed.prefix}/dashboard`);
+    // Apps lives in the Company sidebar section, which starts collapsed
+    // behind the four-item top nav — expand it before asserting the link.
+    const expandCompany = page.getByRole("button", { name: "Expand Company" });
+    await expect(expandCompany).toBeAttached({ timeout: 30_000 });
+    await expandCompany.click();
     const appsLink = page.getByRole("link", { name: "Apps", exact: true });
     await expect(appsLink).toBeVisible({ timeout: 30_000 });
     await expect(appsLink).toHaveAttribute("href", new RegExp(`/${seed.prefix}/apps$`));
