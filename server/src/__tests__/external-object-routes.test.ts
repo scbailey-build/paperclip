@@ -20,6 +20,7 @@ const mockAccessService = vi.hoisted(() => ({
 
 const mockAgentService = vi.hoisted(() => ({
   list: vi.fn(),
+  getById: vi.fn(async () => null),
 }));
 
 const mockExternalObjectsService = vi.hoisted(() => ({
