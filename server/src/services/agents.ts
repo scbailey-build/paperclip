@@ -26,6 +26,8 @@ import {
   type AgentApiKeyScope,
 } from "@paperclipai/shared";
 import { conflict, notFound, unprocessable } from "../errors.js";
+import { evaluateActivationPreconditions } from "./agent-activation.js";
+import { logActivity } from "./activity-log.js";
 import { syncAgentAdapterEnvBindings } from "./agent-secret-bindings.js";
 import { normalizeAgentPermissions } from "./agent-permissions.js";
 import { REDACTED_EVENT_VALUE, sanitizeRecord } from "../redaction.js";
@@ -770,6 +772,35 @@ export function agentService(db: Db) {
     },
 
     activatePendingApproval: async (id: string, approvedPayload?: Record<string, unknown> | null) => {
+      // Data-gated activation: unmet preconditions keep the agent
+      // pending_approval with the blockers stamped on metadata, instead of
+      // activating an agent whose inputs don't exist yet.
+      const pending = await getById(id);
+      if (pending && pending.status === "pending_approval") {
+        const evaluation = await evaluateActivationPreconditions(db, pending);
+        if (!evaluation.met) {
+          await db
+            .update(agents)
+            .set({
+              metadata: { ...(pending.metadata ?? {}), activationBlockers: evaluation.blockers },
+              updatedAt: new Date(),
+            })
+            .where(eq(agents.id, id));
+          await logActivity(db, {
+            companyId: pending.companyId,
+            actorType: "system",
+            actorId: "system",
+            agentId: id,
+            action: "agent.activation_precondition_unmet",
+            entityType: "agent",
+            entityId: id,
+            details: { blockers: evaluation.blockers, source: "activate_pending_approval" },
+          });
+          const blocked = await getById(id);
+          return blocked ? { agent: blocked, activated: false } : null;
+        }
+      }
+
       const activatedAgent = await db.transaction(async (tx) => {
         const txDb = tx as unknown as Db;
         const existing = await agentService(txDb).getById(id);
@@ -791,6 +822,14 @@ export function agentService(db: Db) {
             patch.permissions,
             (patch.role ?? existing.role) as string,
           );
+        }
+        if (
+          patch.metadata === undefined &&
+          existing.metadata &&
+          Object.prototype.hasOwnProperty.call(existing.metadata, "activationBlockers")
+        ) {
+          const { activationBlockers: _cleared, ...restMetadata } = existing.metadata;
+          patch.metadata = restMetadata;
         }
         const updated = await tx
           .update(agents)
