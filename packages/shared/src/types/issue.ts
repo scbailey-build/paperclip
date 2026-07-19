@@ -622,6 +622,7 @@ export interface IssueExecutionPolicy {
   monitor?: IssueExecutionMonitorPolicy | null;
   reviewPreset?: LowTrustReviewPresetPolicy;
   authorizationPolicy?: TrustAuthorizationPolicy;
+  riskTier?: "low" | "medium" | "high" | null;
 }
 
 export interface IssueExecutionMonitorState {

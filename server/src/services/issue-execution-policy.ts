@@ -11,6 +11,8 @@ import type {
   IssueMonitorScheduledBy,
 } from "@paperclipai/shared";
 import { issueExecutionPolicySchema, issueExecutionStateSchema } from "@paperclipai/shared";
+import { inArray } from "drizzle-orm";
+import { agents, type Db } from "@paperclipai/db";
 import { unprocessable } from "../errors.js";
 
 type AssigneeLike = {
@@ -390,7 +392,9 @@ export function normalizeIssueExecutionPolicy(input: unknown): IssueExecutionPol
   const reviewPreset = parsed.data.reviewPreset;
   const authorizationPolicy = parsed.data.authorizationPolicy;
 
-  if (stages.length === 0 && !monitor && !reviewPreset && !authorizationPolicy) return null;
+  const riskTier = parsed.data.riskTier ?? null;
+
+  if (stages.length === 0 && !monitor && !reviewPreset && !authorizationPolicy && !riskTier) return null;
 
   return {
     mode: parsed.data.mode ?? "normal",
@@ -399,7 +403,67 @@ export function normalizeIssueExecutionPolicy(input: unknown): IssueExecutionPol
     ...(monitor ? { monitor } : {}),
     ...(reviewPreset ? { reviewPreset } : {}),
     ...(authorizationPolicy ? { authorizationPolicy } : {}),
+    ...(riskTier ? { riskTier } : {}),
   };
+}
+
+/**
+ * Cross-model adversarial review (design/bql-patterns/01-design.md, P5): a
+ * high-risk policy with an agent-assigned producer must include at least one
+ * review-stage agent reviewer resolving to a different adapterConfig.model
+ * (or adapterType) than the producer — the same model reviewing itself
+ * rubber-stamps its own failure modes. User reviewers always satisfy the
+ * rule. Enforced at policy set time; throws unprocessable on violation.
+ */
+export async function assertCrossModelReviewSatisfied(
+  db: Db,
+  input: {
+    policy: IssueExecutionPolicy | null;
+    assigneeAgentId: string | null | undefined;
+  },
+): Promise<void> {
+  const { policy } = input;
+  if (!policy || policy.riskTier !== "high") return;
+  const producerId = input.assigneeAgentId ?? null;
+  if (!producerId) return;
+  const reviewStages = policy.stages.filter((stage) => stage.type === "review");
+  if (reviewStages.length === 0) {
+    throw unprocessable(
+      "High-risk execution policies require a review stage with a reviewer on a different model than the producer.",
+    );
+  }
+  const participants = reviewStages.flatMap((stage) => stage.participants);
+  if (participants.some((participant) => participant.type === "user")) return;
+  const reviewerAgentIds = [...new Set(
+    participants
+      .filter((participant) => participant.type === "agent" && participant.agentId)
+      .map((participant) => participant.agentId as string),
+  )];
+  if (reviewerAgentIds.length === 0) {
+    throw unprocessable(
+      "High-risk execution policies require at least one review-stage reviewer.",
+    );
+  }
+  const rows = await db
+    .select({ id: agents.id, adapterType: agents.adapterType, adapterConfig: agents.adapterConfig })
+    .from(agents)
+    .where(inArray(agents.id, [producerId, ...reviewerAgentIds]));
+  const modelKey = (row: { adapterType: string; adapterConfig: Record<string, unknown> | null }) => {
+    const model = typeof row.adapterConfig?.model === "string" ? row.adapterConfig.model.trim() : "";
+    return `${row.adapterType}:${model}`;
+  };
+  const producer = rows.find((row) => row.id === producerId);
+  if (!producer) return;
+  const crossModel = reviewerAgentIds.some((reviewerId) => {
+    if (reviewerId === producerId) return false;
+    const reviewer = rows.find((row) => row.id === reviewerId);
+    return reviewer != null && modelKey(reviewer) !== modelKey(producer);
+  });
+  if (!crossModel) {
+    throw unprocessable(
+      "High-risk execution policies require a review-stage agent on a different model (or adapter) than the producing assignee.",
+    );
+  }
 }
 
 export function parseIssueExecutionState(input: unknown): IssueExecutionState | null {

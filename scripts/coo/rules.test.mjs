@@ -245,3 +245,33 @@ test("rule 6: silent under the floor, without cost data, and when fully attribut
     assert.equal(recs.length, 0, `expected silence for ${JSON.stringify(costs)}`);
   }
 });
+
+test("rule 7: flags a pinned model missing from the adapter catalog", () => {
+  const recs = evaluateRules(
+    baseState({
+      agents: [
+        { id: "ag1", name: "Atlas", status: "idle", adapterType: "process", adapterConfig: { model: "gone-1" } },
+        { id: "ag2", name: "Quill", status: "idle", adapterType: "process", adapterConfig: { model: "current-1" } },
+      ],
+      modelsByAdapterType: { process: [{ id: "current-1" }, "current-2"] },
+    }),
+  ).filter((r) => r.rule === "model_pin_stale");
+  assert.equal(recs.length, 1);
+  assert.match(recs[0].title, /Atlas/);
+  assert.match(recs[0].title, /gone-1/);
+  assert.equal(recs[0].fingerprint, `model-pin:ag1:${new Date(NOW).toISOString().slice(0, 10)}`);
+});
+
+test("rule 7: silent when unpinned, catalog missing/empty, agent terminated, or no model data", () => {
+  const cases = [
+    { agents: [{ id: "a", name: "A", status: "idle", adapterType: "process", adapterConfig: {} }], modelsByAdapterType: { process: [{ id: "m" }] } },
+    { agents: [{ id: "a", name: "A", status: "idle", adapterType: "process", adapterConfig: { model: "gone" } }], modelsByAdapterType: {} },
+    { agents: [{ id: "a", name: "A", status: "idle", adapterType: "process", adapterConfig: { model: "gone" } }], modelsByAdapterType: { process: [] } },
+    { agents: [{ id: "a", name: "A", status: "terminated", adapterType: "process", adapterConfig: { model: "gone" } }], modelsByAdapterType: { process: [{ id: "m" }] } },
+    { agents: [{ id: "a", name: "A", status: "idle", adapterType: "process", adapterConfig: { model: "gone" } }] },
+  ];
+  for (const overrides of cases) {
+    const recs = evaluateRules(baseState(overrides)).filter((r) => r.rule === "model_pin_stale");
+    assert.equal(recs.length, 0, `expected silence for ${JSON.stringify(overrides)}`);
+  }
+});

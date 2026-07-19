@@ -204,6 +204,9 @@ export const issueExecutionPolicySchema = z.object({
   monitor: issueExecutionMonitorPolicySchema.optional().nullable(),
   reviewPreset: lowTrustReviewPresetPolicySchema.optional(),
   authorizationPolicy: trustAuthorizationPolicySchema.optional(),
+  // Risk tier (design/bql-patterns/01-design.md, P5): "high" requires the
+  // review stage to include a reviewer on a different model than the producer.
+  riskTier: z.enum(["low", "medium", "high"]).optional().nullable(),
 });
 
 export const issueExecutionMonitorStateSchema = z.object({
