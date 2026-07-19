@@ -608,7 +608,7 @@ describeEmbeddedPostgres("tool gateway acceptance", () => {
           params: { name: "mcp-remote-fixture:update_note", arguments: { noteId: "n1", body: "blocked" } },
         })
         .expect(403);
-      expect(denied.body.error.data.reasonCode).toBe("deny_default");
+      expect(denied.body.error.data.reasonCode).toBe("deny_undecided");
       expect(remote.requests.length).toBe(upstreamRequestCountAfterAllowedCall);
       const deniedAuditRows = await db
         .select()

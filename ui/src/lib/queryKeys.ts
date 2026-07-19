@@ -25,6 +25,7 @@ export const queryKeys = {
       ["tools", companyId, "action-requests", status] as const,
     gateways: (companyId: string) => ["tools", "gateways", companyId] as const,
     profiles: (companyId: string) => ["tools", companyId, "profiles"] as const,
+    coverage: (companyId: string) => ["tools", companyId, "coverage"] as const,
     profileNewTools: (profileId: string) => ["tools", "profiles", profileId, "new-tools"] as const,
     effectiveProfilesForAgent: (companyId: string, agentId: string) =>
       ["tools", companyId, "profiles", "effective", "agent", agentId] as const,

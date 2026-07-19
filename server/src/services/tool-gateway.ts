@@ -4837,6 +4837,60 @@ export function createToolGatewayService(
         });
     },
 
+    /**
+     * Tri-state coverage ledger (design/bql-patterns/01-design.md, P4): every
+     * registered tool minus those with an explicit entry in any active profile
+     * is an *undecided* tool — denied at runtime like deny-default, but an
+     * open decision rather than a settled one.
+     */
+    async toolPolicyCoverage(companyId: string) {
+      const [profiles, universeConnected] = await Promise.all([
+        db
+          .select()
+          .from(toolProfiles)
+          .where(and(eq(toolProfiles.companyId, companyId), eq(toolProfiles.status, "active"))),
+        connectedMcpToolsForCompany(companyId),
+      ]);
+      const profileIds = profiles.map((profile) => profile.id);
+      const entries = profileIds.length === 0
+        ? []
+        : await db
+          .select()
+          .from(toolProfileEntries)
+          .where(inArray(toolProfileEntries.profileId, profileIds));
+
+      const universe = [...allTools(), ...universeConnected];
+      const entryMatchesDescriptor = (
+        entry: typeof toolProfileEntries.$inferSelect,
+        tool: ToolGatewayDescriptor,
+      ): boolean => {
+        if (entry.selectorType === "application") return entry.applicationId != null && entry.applicationId === (tool.applicationId ?? null);
+        if (entry.selectorType === "connection") return entry.connectionId != null && entry.connectionId === (tool.connectionId ?? null);
+        if (entry.selectorType === "catalog_entry") return entry.catalogEntryId != null && entry.catalogEntryId === (tool.catalogEntryId ?? null);
+        if (entry.selectorType === "tool_name") return entry.toolName === tool.name || entry.toolName === (tool.upstreamToolName ?? null);
+        if (entry.selectorType === "risk_level") return entry.riskLevel === tool.risk;
+        return false;
+      };
+
+      const undecided = universe
+        .filter((tool) => !entries.some((entry) => entryMatchesDescriptor(entry, tool)))
+        .map((tool) => ({
+          name: tool.name,
+          displayName: tool.displayName,
+          providerType: tool.providerType,
+          risk: tool.risk,
+          applicationDisplayName: tool.applicationDisplayName ?? null,
+        }));
+
+      return {
+        totalTools: universe.length,
+        classifiedCount: universe.length - undecided.length,
+        undecidedCount: undecided.length,
+        activeProfileCount: profiles.length,
+        undecided,
+      };
+    },
+
     async summarizeConnectionAccessForAgent(input: { companyId: string; connectionId: string; agentId: string }) {
       await assertAgentInCompany(input.companyId, input.agentId);
       const tools = await connectedMcpToolsForConnection(input.companyId, input.connectionId);

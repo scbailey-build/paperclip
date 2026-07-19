@@ -759,6 +759,7 @@ const BOARD_ONLY_OPERATIONS = new Set([
   "POST /api/issues/{id}/interactions/{interactionId}/reject",
   "POST /api/issues/{id}/interactions/{interactionId}/respond",
   "GET /api/companies/{companyId}/tools/gallery",
+  "GET /api/companies/{companyId}/tools/coverage",
   "POST /api/companies/{companyId}/tools/apps/connect",
   "POST /api/companies/{companyId}/tools/apps/{connectionId}/finish",
   "GET /api/companies/{companyId}/tools/apps/attention",
@@ -5864,6 +5865,13 @@ registerCurrentRoute({
   path: "/api/companies/{companyId}/tools/gallery",
   tags: ["tool-access"],
   summary: "List tool app gallery entries",
+});
+
+registerCurrentRoute({
+  method: "get",
+  path: "/api/companies/{companyId}/tools/coverage",
+  tags: ["tool-access"],
+  summary: "Tool policy coverage: registered tools no active profile has classified",
 });
 
 registerCurrentRoute({

@@ -292,7 +292,8 @@ describeEmbeddedPostgres("tool access policy service", () => {
     expect(result).toMatchObject({
       allowed: false,
       decision: "deny",
-      reasonCode: "deny_default",
+      // Tri-state (fork): the effective profile never classified this tool.
+      reasonCode: "deny_undecided",
       effectiveProfileIds: [issueProfile!.id],
     });
   });
@@ -352,7 +353,8 @@ describeEmbeddedPostgres("tool access policy service", () => {
     expect(result).toMatchObject({
       allowed: false,
       decision: "deny",
-      reasonCode: "deny_default",
+      // Tri-state (fork): the effective profile never classified this tool.
+      reasonCode: "deny_undecided",
       effectiveProfileIds: [agentProfile!.id],
     });
   });

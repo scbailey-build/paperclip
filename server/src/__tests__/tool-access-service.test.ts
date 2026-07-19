@@ -2158,13 +2158,13 @@ describeEmbeddedPostgres("tool access service", () => {
     expect(smoke.checks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "allow_read_tool", ok: true, decision: "allow", reasonCode: "allow_profile" }),
-        expect.objectContaining({ name: "deny_write_tool", ok: true, decision: "deny", reasonCode: "deny_default" }),
+        expect.objectContaining({ name: "deny_write_tool", ok: true, decision: "deny", reasonCode: "deny_undecided" }),
         expect.objectContaining({ name: "audit_written", ok: true }),
       ]),
     );
     const auditRows = await db.select().from(toolAccessAuditEvents).where(eq(toolAccessAuditEvents.companyId, company.id));
     expect(auditRows.some((row) => row.action === "tool_access.policy_decision" && row.reasonCode === "allow_profile")).toBe(true);
-    expect(auditRows.some((row) => row.action === "tool_access.policy_decision" && row.reasonCode === "deny_default")).toBe(true);
+    expect(auditRows.some((row) => row.action === "tool_access.policy_decision" && row.reasonCode === "deny_undecided")).toBe(true);
   });
 
   it("evaluates enabled tool policies by priority with first-match wins", async () => {
