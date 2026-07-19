@@ -32,13 +32,21 @@ jobs:
           changed="$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")"
           if printf '%s\n' "$changed" | grep -qx 'pnpm-lock.yaml'; then
             # Upstream-sync merges legitimately carry the upstream lockfile: when
-            # the PR head is a merge commit and pnpm-lock.yaml is byte-identical
-            # to the merged-in parent, it was not hand-edited in this fork.
+            # the PR contains a merge commit whose merged-in parent has a
+            # pnpm-lock.yaml byte-identical to the PR head's, the lockfile was
+            # inherited from the merge, not hand-edited in this fork.
+            base_sha="${{ github.event.pull_request.base.sha }}"
             head_sha="${{ github.event.pull_request.head.sha }}"
-            if merge_parent="$(git rev-parse --verify --quiet "${head_sha}^2")" \
-              && git diff --quiet "$merge_parent" "$head_sha" -- pnpm-lock.yaml; then
-              echo "pnpm-lock.yaml matches merge parent ${merge_parent}; allowing upstream-sync merge."
-            else
+            lockfile_inherited=0
+            for merge_commit in $(git log --merges --format=%H "${base_sha}..${head_sha}"); do
+              if merge_parent="$(git rev-parse --verify --quiet "${merge_commit}^2")" \
+                && git diff --quiet "$merge_parent" "$head_sha" -- pnpm-lock.yaml; then
+                echo "pnpm-lock.yaml matches merge parent ${merge_parent} of ${merge_commit}; allowing upstream-sync merge."
+                lockfile_inherited=1
+                break
+              fi
+            done
+            if [ "$lockfile_inherited" != "1" ]; then
               echo "Do not commit pnpm-lock.yaml in pull requests. CI owns lockfile updates."
               exit 1
             fi
