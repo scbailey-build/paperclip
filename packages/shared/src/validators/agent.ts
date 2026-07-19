@@ -63,10 +63,22 @@ const agentModelProfileConfigSchema = z.object({
   adapterConfig: adapterConfigSchema,
 }).strict();
 
+export const agentActivationPreconditionSchema = z.object({
+  kind: z.literal("min_rows"),
+  entity: z.enum(["issues", "projects", "goals", "company_skills"]),
+  status: z.string().trim().min(1).optional(),
+  min: z.number().int().min(1),
+}).strict();
+
+export type AgentActivationPrecondition = z.infer<typeof agentActivationPreconditionSchema>;
+
 export const agentRuntimeConfigSchema = z.object({
   modelProfiles: z.object({
     cheap: agentModelProfileConfigSchema.optional(),
   }).strict().optional(),
+  // Data-gated activation: the agent stays pending (and dispatch skips runs)
+  // until the company data it monitors actually exists. Absent = no gates.
+  activationPreconditions: z.array(agentActivationPreconditionSchema).max(20).optional(),
 }).catchall(z.unknown());
 
 export const createAgentSchema = z.object({

@@ -117,6 +117,7 @@ import {
   isThrottleCandidateIssueRewake,
 } from "./issue-rewake-throttle.js";
 import { logActivity, publishPluginDomainEvent, type LogActivityInput } from "./activity-log.js";
+import { evaluateActivationPreconditions } from "./agent-activation.js";
 import {
   buildWorkspaceReadyComment,
   cleanupExecutionWorkspaceArtifacts,
@@ -10639,6 +10640,27 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     });
     if (budgetBlock) {
       await cancelRunInternal(run.id, budgetBlock.reason);
+      return null;
+    }
+
+    // Data-gated activation: an agent whose declared preconditions are unmet
+    // does not burn budget on runs that cannot do useful work. The skip is
+    // logged so the gap is visible instead of silent.
+    const activation = await evaluateActivationPreconditions(db, agent);
+    if (!activation.met) {
+      const summary = activation.blockers.map((b) => b.description).join("; ");
+      await cancelRunInternal(run.id, `Cancelled: activation preconditions unmet (${summary})`);
+      await logActivity(db, {
+        companyId: run.companyId,
+        actorType: "system",
+        actorId: "system",
+        agentId: run.agentId,
+        runId: run.id,
+        action: "agent.activation_precondition_unmet",
+        entityType: "heartbeat_run",
+        entityId: run.id,
+        details: { blockers: activation.blockers, source: "heartbeat.claim_queued_run" },
+      });
       return null;
     }
 

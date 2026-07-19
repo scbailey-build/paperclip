@@ -1189,6 +1189,29 @@ export function AgentDetail() {
         </div>
       </div>
 
+      {(() => {
+        const blockers = Array.isArray(agent.metadata?.activationBlockers)
+          ? (agent.metadata.activationBlockers as Array<{ description?: string }>)
+          : [];
+        if (blockers.length === 0) return null;
+        return (
+          <InlineBanner tone="warning" title="Activation blocked — data preconditions unmet">
+            <ul className="list-disc pl-4">
+              {blockers.map((b, index) => (
+                <li key={index}>{b.description ?? "precondition unmet"}</li>
+              ))}
+            </ul>
+            <p className="mt-1">
+              This agent stays pending until the data it monitors exists — seed it via{" "}
+              <Link to="/company/import" className="underline">
+                import
+              </Link>{" "}
+              or create the missing records, then approve again.
+            </p>
+          </InlineBanner>
+        );
+      })()}
+
       {builtInState && (
         <InlineBanner
           tone="info"

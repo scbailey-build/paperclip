@@ -1490,6 +1490,8 @@ export {
   testAdapterEnvironmentSchema,
   agentPermissionsSchema,
   updateAgentPermissionsSchema,
+  agentActivationPreconditionSchema,
+  type AgentActivationPrecondition,
   type CreateAgent,
   type BuiltInAgentProvision,
   type BuiltInAgentReset,
