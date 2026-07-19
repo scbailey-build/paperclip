@@ -142,18 +142,52 @@ export function approvalRoutes(
         : approvalInput.payload;
 
     const actor = getActorInfo(req);
+    // Agent attribution is server-derived from the credential, never from the
+    // body: an agent actor is always recorded as itself. Board callers may
+    // still attribute on behalf of an agent during the deprecation window;
+    // every body-claimed attribution is flagged below so operators can migrate
+    // before body claims are rejected (ADR-b stage two).
+    const bodyClaimedAgentId = approvalInput.requestedByAgentId ?? null;
+    const requestedByAgentId = actor.actorType === "agent" ? actor.actorId : bodyClaimedAgentId;
     const approval = await svc.create(companyId, {
       ...approvalInput,
       payload: normalizedPayload,
       requestedByUserId: actor.actorType === "user" ? actor.actorId : null,
-      requestedByAgentId:
-        approvalInput.requestedByAgentId ?? (actor.actorType === "agent" ? actor.actorId : null),
+      requestedByAgentId,
       status: "pending",
       decisionNote: null,
       decidedByUserId: null,
       decidedAt: null,
       updatedAt: new Date(),
     });
+
+    const bodyClaimUsed =
+      actor.actorType === "agent"
+        ? bodyClaimedAgentId != null && bodyClaimedAgentId !== actor.actorId
+        : bodyClaimedAgentId != null;
+    if (bodyClaimUsed) {
+      const attributeGranted =
+        actor.actorType === "user"
+          ? await access.canUser(companyId, actor.actorId, "approvals:attribute")
+          : false;
+      await logActivity(db, {
+        companyId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        agentId: actor.actorType === "agent" ? actor.actorId : bodyClaimedAgentId,
+        runId: actor.runId,
+        action: "approval.attribution_body_claim_deprecated",
+        entityType: "approval",
+        entityId: approval.id,
+        details: {
+          bodyClaimedAgentId,
+          recordedAgentId: requestedByAgentId,
+          attributeGranted,
+          deprecation:
+            "requestedByAgentId in the request body is deprecated; attribution is derived from the caller's credential. Body claims from board callers will be rejected in a future release unless the caller holds approvals:attribute.",
+        },
+      });
+    }
 
     if (uniqueIssueIds.length > 0) {
       await issueApprovalsSvc.linkManyForApproval(approval.id, uniqueIssueIds, {

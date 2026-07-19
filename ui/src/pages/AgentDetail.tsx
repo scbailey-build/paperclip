@@ -4189,6 +4189,9 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
                   <span className="text-xs text-muted-foreground ml-3">
                     Created {formatDate(key.createdAt)}
                   </span>
+                  <span className="text-xs text-muted-foreground ml-3">
+                    {key.lastUsedAt ? `Last used ${relativeTime(key.lastUsedAt)}` : "Never used"}
+                  </span>
                 </div>
                 <Button
                   variant="ghost"
