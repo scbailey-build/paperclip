@@ -11,6 +11,7 @@ import {
   activityLog,
   costEvents,
   financeEvents,
+  goals,
   heartbeatRuns,
   issues,
   projects,
@@ -425,6 +426,7 @@ describeEmbeddedPostgres("cost and finance aggregate overflow handling", () => {
     await db.delete(activityLog);
     await db.delete(heartbeatRuns);
     await db.delete(issues);
+    await db.delete(goals);
     await db.delete(projects);
     await db.delete(agents);
     await db.delete(companies);
@@ -432,6 +434,72 @@ describeEmbeddedPostgres("cost and finance aggregate overflow handling", () => {
 
   afterAll(async () => {
     await tempDb?.cleanup();
+  });
+
+  it("fills projectId, goalId, and billingCode from the issue when the event only names an issue", async () => {
+    const companyId = randomUUID();
+    const agentId = randomUUID();
+    const projectId = randomUUID();
+    const goalId = randomUUID();
+    const issueId = randomUUID();
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await db.insert(agents).values({
+      id: agentId,
+      companyId,
+      name: "Worker",
+      role: "engineer",
+      status: "active",
+      adapterType: "codex_local",
+      adapterConfig: {},
+      runtimeConfig: {},
+      permissions: {},
+    });
+    await db.insert(projects).values({ id: projectId, companyId, name: "Growth" });
+    await db.insert(goals).values({ id: goalId, companyId, title: "Launch engine" });
+    await db.insert(issues).values({
+      id: issueId,
+      companyId,
+      title: "Attributed card",
+      status: "in_progress",
+      priority: "medium",
+      issueNumber: 1,
+      identifier: "TST-1",
+      projectId,
+      goalId,
+      billingCode: "CLIENT-ALPHA",
+    });
+
+    const event = await costs.createEvent(companyId, {
+      agentId,
+      issueId,
+      provider: "anthropic",
+      model: "claude-test",
+      costCents: 125,
+      occurredAt: new Date("2026-07-13T14:22:54.000Z"),
+    });
+
+    expect(event.projectId).toBe(projectId);
+    expect(event.goalId).toBe(goalId);
+    expect(event.billingCode).toBe("CLIENT-ALPHA");
+
+    // Caller-supplied attribution always wins over the issue's values.
+    const explicit = await costs.createEvent(companyId, {
+      agentId,
+      issueId,
+      billingCode: "CLIENT-BETA",
+      provider: "anthropic",
+      model: "claude-test",
+      costCents: 50,
+      occurredAt: new Date("2026-07-13T14:25:00.000Z"),
+    });
+    expect(explicit.billingCode).toBe("CLIENT-BETA");
+    expect(explicit.projectId).toBe(projectId);
   });
 
   it("persists unpriced token usage without inflating monthly spend", async () => {

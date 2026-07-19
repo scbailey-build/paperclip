@@ -221,3 +221,27 @@ test("suppressedFingerprints ignores non-COO approvals", () => {
   );
   assert.equal(set.size, 0);
 });
+
+test("rule 6: flags unattributed spend over the floor, day-bucketed fingerprint", () => {
+  const recs = evaluateRules(
+    baseState({ costs: { windowCents: 5000, attributedCents: 3000 } }),
+  ).filter((r) => r.rule === "unattributed_spend");
+  assert.equal(recs.length, 1);
+  assert.match(recs[0].title, /\$20\.00/);
+  assert.match(recs[0].situation, /40%/);
+  assert.equal(recs[0].fingerprint, `cost-attribution:${new Date(NOW).toISOString().slice(0, 10)}`);
+});
+
+test("rule 6: silent under the floor, without cost data, and when fully attributed", () => {
+  for (const costs of [
+    null,
+    { windowCents: 50, attributedCents: 0 },
+    { windowCents: 5000, attributedCents: 5000 },
+    { windowCents: 3000, attributedCents: 5000 },
+  ]) {
+    const recs = evaluateRules(baseState({ costs })).filter(
+      (r) => r.rule === "unattributed_spend",
+    );
+    assert.equal(recs.length, 0, `expected silence for ${JSON.stringify(costs)}`);
+  }
+});
