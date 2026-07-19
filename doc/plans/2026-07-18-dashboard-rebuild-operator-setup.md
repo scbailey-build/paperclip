@@ -6,9 +6,16 @@ Replays what was built and verified in the dev sandbox onto a production/local i
 
 ```sh
 pnpm install && pnpm build
-pnpm db:migrate                      # applies 0085 (notification webhook column)
+pnpm db:migrate                      # applies the fork migrations (webhook column, unique key-hash index)
 pnpm paperclipai run                 # or pnpm dev
 ```
+
+**Required for agent identity:** set `PAPERCLIP_AGENT_JWT_SECRET` (or
+`BETTER_AUTH_SECRET`) in the server's `.env` before starting. Without it the
+process adapter cannot mint per-run credentials, the server logs
+`local agent jwt secret missing`, and every script agent's API writes silently
+attribute to the shared `local-board` identity instead of the agent. Generate
+one with `openssl rand -hex 32`.
 
 Then, in order:
 
