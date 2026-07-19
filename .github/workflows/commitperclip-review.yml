@@ -15,6 +15,9 @@ permissions:
 
 jobs:
   review:
+    # Upstream-only: depends on the upstream Dependency graph being enabled and
+    # the COMMITPERCLIP_KEY secret, neither of which exists on forks.
+    if: github.repository == 'paperclipai/paperclip'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
