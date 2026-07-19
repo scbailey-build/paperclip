@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { createDb, agents, companies, issueRecoveryActions, issues } from "@paperclipai/db";
+import { activityLog, createDb, agents, companies, issueRecoveryActions, issues } from "@paperclipai/db";
 import {
   getEmbeddedPostgresTestSupport,
   startEmbeddedPostgresTestDatabase,
@@ -24,6 +24,9 @@ describeEmbeddedPostgres("improvement proposal reconciliation", () => {
   }, 20_000);
 
   afterEach(async () => {
+    // The service writes an activity_log row on proposal creation; clear it
+    // before companies so the FK to companies does not block teardown.
+    await db.delete(activityLog);
     await db.delete(issueRecoveryActions);
     await db.delete(issues);
     await db.delete(agents);
