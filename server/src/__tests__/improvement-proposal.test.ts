@@ -62,16 +62,24 @@ describeEmbeddedPostgres("improvement proposal reconciliation", () => {
     return id;
   }
 
-  async function seedRecoveryAction(companyId: string, sourceIssueId: string, cause: string, createdAt?: Date) {
+  async function seedRecoveryAction(
+    companyId: string,
+    sourceIssueId: string,
+    cause: string,
+    opts?: { createdAt?: Date; status?: string; fingerprintSuffix?: string },
+  ) {
     await db.insert(issueRecoveryActions).values({
       id: randomUUID(),
       companyId,
       sourceIssueId,
       kind: "stranded_assigned_issue",
+      status: opts?.status ?? "active",
       cause,
-      fingerprint: `${cause}:${sourceIssueId}`,
+      // active_source_uq allows one active action per source issue; give
+      // repeated same-issue actions distinct fingerprints/statuses.
+      fingerprint: `${cause}:${sourceIssueId}:${opts?.fingerprintSuffix ?? "0"}`,
       nextAction: `recover ${sourceIssueId}`,
-      ...(createdAt ? { createdAt } : {}),
+      ...(opts?.createdAt ? { createdAt: opts.createdAt } : {}),
     });
   }
 
@@ -110,8 +118,10 @@ describeEmbeddedPostgres("improvement proposal reconciliation", () => {
     const companyId = await seedCompany();
     const issueA = await seedIssue(companyId, "TST-1");
     // Two recovery actions, but on the SAME issue — not cross-issue recurrence.
-    await seedRecoveryAction(companyId, issueA, "provider_quota");
-    await seedRecoveryAction(companyId, issueA, "provider_quota");
+    // A source issue can carry only one active action at a time, so the earlier
+    // one is resolved (as it would be in reality).
+    await seedRecoveryAction(companyId, issueA, "provider_quota", { status: "resolved", fingerprintSuffix: "1" });
+    await seedRecoveryAction(companyId, issueA, "provider_quota", { status: "active", fingerprintSuffix: "2" });
 
     const result = await improvementProposalService(db).reconcileImprovementProposals();
     expect(result.created).toBe(0);
@@ -123,8 +133,8 @@ describeEmbeddedPostgres("improvement proposal reconciliation", () => {
     const issueA = await seedIssue(companyId, "TST-1");
     const issueB = await seedIssue(companyId, "TST-2");
     const stale = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
-    await seedRecoveryAction(companyId, issueA, "workspace_validation_failed", stale);
-    await seedRecoveryAction(companyId, issueB, "workspace_validation_failed", stale);
+    await seedRecoveryAction(companyId, issueA, "workspace_validation_failed", { createdAt: stale });
+    await seedRecoveryAction(companyId, issueB, "workspace_validation_failed", { createdAt: stale });
 
     const result = await improvementProposalService(db).reconcileImprovementProposals();
     expect(result.created).toBe(0);
