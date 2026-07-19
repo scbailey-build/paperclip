@@ -31,8 +31,17 @@ jobs:
           # do not masquerade as changes made by the PR itself.
           changed="$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")"
           if printf '%s\n' "$changed" | grep -qx 'pnpm-lock.yaml'; then
-            echo "Do not commit pnpm-lock.yaml in pull requests. CI owns lockfile updates."
-            exit 1
+            # Upstream-sync merges legitimately carry the upstream lockfile: when
+            # the PR head is a merge commit and pnpm-lock.yaml is byte-identical
+            # to the merged-in parent, it was not hand-edited in this fork.
+            head_sha="${{ github.event.pull_request.head.sha }}"
+            if merge_parent="$(git rev-parse --verify --quiet "${head_sha}^2")" \
+              && git diff --quiet "$merge_parent" "$head_sha" -- pnpm-lock.yaml; then
+              echo "pnpm-lock.yaml matches merge parent ${merge_parent}; allowing upstream-sync merge."
+            else
+              echo "Do not commit pnpm-lock.yaml in pull requests. CI owns lockfile updates."
+              exit 1
+            fi
           fi
 
       - name: Setup pnpm
