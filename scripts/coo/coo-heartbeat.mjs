@@ -108,6 +108,26 @@ async function main() {
     }
   }
 
+  // Rule 7 input: current model catalog per adapter type, for agents whose
+  // adapterConfig pins a model. Visibility is permission-gated — a COO
+  // without the agent_config:read grant sees empty adapterConfig and the
+  // rule stays silent. Each fetch fails soft.
+  const pinnedAdapterTypes = [...new Set(
+    agents
+      .filter((a) => typeof a.adapterConfig?.model === "string" && a.adapterConfig.model.trim())
+      .map((a) => a.adapterType),
+  )];
+  const modelsByAdapterType = {};
+  for (const type of pinnedAdapterTypes) {
+    try {
+      modelsByAdapterType[type] = await get(
+        `/companies/${COMPANY}/adapters/${encodeURIComponent(type)}/models?refresh=1`,
+      );
+    } catch {
+      // skip: an unreachable catalog must not silence the other rules
+    }
+  }
+
   // Rule 6 input: last-24h attribution completeness. by-project already
   // includes the activity-log fallback join, so total minus its sum is the
   // spend no rollup can claim.
@@ -132,6 +152,7 @@ async function main() {
     approvals,
     budgets,
     costs,
+    modelsByAdapterType,
     plansByIssueId,
     workProductsByIssueId,
   });

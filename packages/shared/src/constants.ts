@@ -92,7 +92,10 @@ export const ADAPTER_AGNOSTIC_KEYS = [
 ] as const;
 export type AdapterAgnosticKey = (typeof ADAPTER_AGNOSTIC_KEYS)[number];
 
-export const MODEL_PROFILE_KEYS = ["cheap"] as const;
+// Risk-tier model profiles (design/bql-patterns/01-design.md, P5):
+// cheap=low-risk, standard=medium, frontier=high. "cheap" predates the tiers
+// and keeps its existing resolution behavior.
+export const MODEL_PROFILE_KEYS = ["cheap", "standard", "frontier"] as const;
 export type ModelProfileKey = (typeof MODEL_PROFILE_KEYS)[number];
 
 export const AGENT_ICON_NAMES = [

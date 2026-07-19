@@ -211,5 +211,29 @@ export function evaluateRules(state) {
     }
   }
 
+  // Rule 7 — model pins missing from the adapter's current catalog. A pinned
+  // model that the provider retired keeps failing runs quietly; surface it as
+  // a decision. Fail-soft: no catalog for the adapter type → no opinion.
+  if (state.modelsByAdapterType) {
+    const day = new Date(now).toISOString().slice(0, 10);
+    for (const a of state.agents) {
+      if (["terminated", "archived"].includes(a.status)) continue;
+      const pinned = typeof a.adapterConfig?.model === "string" ? a.adapterConfig.model.trim() : "";
+      if (!pinned) continue;
+      const models = state.modelsByAdapterType[a.adapterType];
+      if (!Array.isArray(models) || models.length === 0) continue;
+      const known = models.some((m) => (typeof m === "string" ? m : m?.id) === pinned);
+      if (known) continue;
+      recommend(`model-pin:${a.id}:${day}`, {
+        rule: "model_pin_stale",
+        title: `${a.name} pinned to unavailable model ${pinned}`,
+        situation: `${a.name} (${a.adapterType}) is pinned to "${pinned}", which is not in the adapter's current model list — its runs will fail or silently fall back.`,
+        recommendation: `Repoint ${a.name} to a current model (adapter settings → model), or clear the pin to use the adapter default.`,
+        costOfDecidingWrong:
+          "A stale pin quietly fails every run it schedules; switching models mid-task costs one review of recent output.",
+      });
+    }
+  }
+
   return recommendations;
 }

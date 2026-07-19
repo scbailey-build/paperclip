@@ -75,6 +75,8 @@ export type AgentActivationPrecondition = z.infer<typeof agentActivationPrecondi
 export const agentRuntimeConfigSchema = z.object({
   modelProfiles: z.object({
     cheap: agentModelProfileConfigSchema.optional(),
+    standard: agentModelProfileConfigSchema.optional(),
+    frontier: agentModelProfileConfigSchema.optional(),
   }).strict().optional(),
   // Data-gated activation: the agent stays pending (and dispatch skips runs)
   // until the company data it monitors actually exists. Absent = no gates.

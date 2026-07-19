@@ -84,7 +84,7 @@ import {
   type ParsedExecutionWorkspaceMode,
 } from "./execution-workspace-policy.js";
 import { mergeExecutionWorkspaceConfig } from "./execution-workspaces.js";
-import { buildInitialIssueMonitorFields, normalizeIssueExecutionPolicy } from "./issue-execution-policy.js";
+import { assertCrossModelReviewSatisfied, buildInitialIssueMonitorFields, normalizeIssueExecutionPolicy } from "./issue-execution-policy.js";
 import { instanceSettingsService } from "./instance-settings.js";
 import { redactCurrentUserText } from "../log-redaction.js";
 import { redactSensitiveText } from "../redaction.js";
@@ -6408,15 +6408,22 @@ export function issueService(db: Db) {
         if (values.status === "cancelled") {
           values.cancelledAt = new Date();
         }
-        Object.assign(
-          values,
-          buildInitialIssueMonitorFields({
-            policy: normalizeIssueExecutionPolicy(issueData.executionPolicy ?? null),
-            status: values.status ?? "backlog",
+        {
+          const normalizedPolicy = normalizeIssueExecutionPolicy(issueData.executionPolicy ?? null);
+          await assertCrossModelReviewSatisfied(db, {
+            policy: normalizedPolicy,
             assigneeAgentId: values.assigneeAgentId ?? null,
-            assigneeUserId: values.assigneeUserId ?? null,
-          }),
-        );
+          });
+          Object.assign(
+            values,
+            buildInitialIssueMonitorFields({
+              policy: normalizedPolicy,
+              status: values.status ?? "backlog",
+              assigneeAgentId: values.assigneeAgentId ?? null,
+              assigneeUserId: values.assigneeUserId ?? null,
+            }),
+          );
+        }
 
         const [issue] = await tx.insert(issues).values(values).returning();
         if (idempotencyKey) {
@@ -6508,6 +6515,15 @@ export function issueService(db: Db) {
 
       if (nextAssigneeAgentId && nextAssigneeUserId) {
         throw unprocessable("Issue can only have one assignee");
+      }
+
+      if (issueData.executionPolicy !== undefined || issueData.assigneeAgentId !== undefined) {
+        await assertCrossModelReviewSatisfied(dbOrTx, {
+          policy: normalizeIssueExecutionPolicy(
+            issueData.executionPolicy !== undefined ? issueData.executionPolicy : existing.executionPolicy,
+          ),
+          assigneeAgentId: nextAssigneeAgentId ?? null,
+        });
       }
       if (patch.status === "in_progress" && !nextAssigneeAgentId && !nextAssigneeUserId) {
         throw unprocessable("in_progress issues require an assignee");
