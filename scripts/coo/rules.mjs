@@ -11,6 +11,7 @@ export const DEFAULT_CONFIG = {
   gateHours: 24,
   wipLimit: 5,
   budgetWarnPct: 80,
+  unattributedMinCents: 100,
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -185,6 +186,29 @@ export function evaluateRules(state) {
       costOfDecidingWrong:
         "Parallel edits to one deliverable produce conflicting versions; consolidation costs one reassignment.",
     });
+  }
+
+  // Rule 6 — attribution completeness: spend in the window that no project
+  // rollup can claim (total minus the by-project sum, which already includes
+  // the activity-log fallback join). Fingerprint is day-bucketed so a
+  // persisting gap re-raises daily instead of being 7-day-suppressed.
+  if (state.costs) {
+    const windowCents = Number(state.costs.windowCents ?? 0);
+    const attributedCents = Number(state.costs.attributedCents ?? 0);
+    const unattributedCents = Math.max(0, windowCents - attributedCents);
+    if (unattributedCents >= config.unattributedMinCents) {
+      const pct = windowCents > 0 ? Math.round((unattributedCents / windowCents) * 100) : 0;
+      const day = new Date(now).toISOString().slice(0, 10);
+      recommend(`cost-attribution:${day}`, {
+        rule: "unattributed_spend",
+        title: `$${(unattributedCents / 100).toFixed(2)} of spend has no project`,
+        situation: `In the last day, $${(unattributedCents / 100).toFixed(2)} of $${(windowCents / 100).toFixed(2)} (${pct}%) landed on no department — those cost events carry no issue or project, so no client rollup can claim them.`,
+        recommendation:
+          "Find the agents producing unattributed runs (Costs → by agent vs by department) and tie their work to cards, or accept the overhead explicitly.",
+        costOfDecidingWrong:
+          "Unattributed spend silently distorts every per-department margin; chasing pennies wastes a decision slot.",
+      });
+    }
   }
 
   return recommendations;

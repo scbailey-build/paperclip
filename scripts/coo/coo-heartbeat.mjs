@@ -66,14 +66,18 @@ async function post(path, body) {
 
 async function main() {
   const now = Date.now();
-  const [issues, agents, projects, goals, approvals, budgets] = await Promise.all([
-    get(`/companies/${COMPANY}/issues?limit=250`),
-    get(`/companies/${COMPANY}/agents`),
-    get(`/companies/${COMPANY}/projects`),
-    get(`/companies/${COMPANY}/goals`),
-    get(`/companies/${COMPANY}/approvals`),
-    get(`/companies/${COMPANY}/budgets/overview`),
-  ]);
+  const windowFrom = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  const [issues, agents, projects, goals, approvals, budgets, costSummary, costByProject] =
+    await Promise.all([
+      get(`/companies/${COMPANY}/issues?limit=250`),
+      get(`/companies/${COMPANY}/agents`),
+      get(`/companies/${COMPANY}/projects`),
+      get(`/companies/${COMPANY}/goals`),
+      get(`/companies/${COMPANY}/approvals`),
+      get(`/companies/${COMPANY}/budgets/overview`),
+      get(`/companies/${COMPANY}/costs/summary?from=${encodeURIComponent(windowFrom)}`).catch(() => null),
+      get(`/companies/${COMPANY}/costs/by-project?from=${encodeURIComponent(windowFrom)}`).catch(() => null),
+    ]);
 
   const open = issues.filter((i) => !["done", "cancelled"].includes(i.status));
 
@@ -104,6 +108,20 @@ async function main() {
     }
   }
 
+  // Rule 6 input: last-24h attribution completeness. by-project already
+  // includes the activity-log fallback join, so total minus its sum is the
+  // spend no rollup can claim.
+  const costs =
+    costSummary == null
+      ? null
+      : {
+        windowCents: Number(costSummary.spendCents ?? 0),
+        attributedCents: (costByProject ?? []).reduce(
+          (sum, row) => sum + Number(row.costCents ?? 0),
+          0,
+        ),
+      };
+
   const recommendations = evaluateRules({
     now,
     config,
@@ -113,6 +131,7 @@ async function main() {
     goals,
     approvals,
     budgets,
+    costs,
     plansByIssueId,
     workProductsByIssueId,
   });

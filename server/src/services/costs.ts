@@ -64,11 +64,31 @@ export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
         throw unprocessable("Agent does not belong to company");
       }
 
+      // Cost attribution rides the issue: when the event names an issue but
+      // not its project/goal/billing code, fill them from the issue row so
+      // every issue-linked cent lands on a project, workflow, and client
+      // rollup without callers having to thread the extra ids.
+      let attribution: { projectId: string | null; goalId: string | null; billingCode: string | null } | null = null;
+      if (data.issueId && (!data.projectId || !data.goalId || !data.billingCode)) {
+        attribution = await db
+          .select({
+            projectId: issues.projectId,
+            goalId: issues.goalId,
+            billingCode: issues.billingCode,
+          })
+          .from(issues)
+          .where(and(eq(issues.id, data.issueId), eq(issues.companyId, companyId)))
+          .then((rows) => rows[0] ?? null);
+      }
+
       const event = await db
         .insert(costEvents)
         .values({
           ...data,
           companyId,
+          projectId: data.projectId ?? attribution?.projectId ?? null,
+          goalId: data.goalId ?? attribution?.goalId ?? null,
+          billingCode: data.billingCode ?? attribution?.billingCode ?? null,
           biller: data.biller ?? data.provider,
           billingType: data.billingType ?? "unknown",
           cachedInputTokens: data.cachedInputTokens ?? 0,
