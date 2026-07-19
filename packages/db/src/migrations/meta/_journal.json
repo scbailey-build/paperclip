@@ -1275,6 +1275,13 @@
       "when": 1784231634060,
       "tag": "0183_agent_api_keys_unique_key_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1784231634061,
+      "tag": "0184_issues_active_improvement_proposal_index",
+      "breakpoints": true
     }
   ]
 }

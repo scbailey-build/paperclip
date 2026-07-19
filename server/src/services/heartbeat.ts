@@ -210,6 +210,7 @@ import {
 } from "./recovery/model-profile-hint.js";
 import { recoveryService } from "./recovery/service.js";
 import { productivityReviewService } from "./productivity-review.js";
+import { improvementProposalService } from "./improvement-proposal.js";
 import { resolveRequiredSuccessfulRunHandoffOnValidPath } from "./successful-run-handoff-state.js";
 import { taskWatchdogService } from "./task-watchdogs.js";
 import { withAgentStartLock } from "./agent-start-lock.js";
@@ -5684,6 +5685,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
   }
 
   const productivityReviews = productivityReviewService(db, { enqueueWakeup });
+  const improvementProposals = improvementProposalService(db);
   const taskWatchdogs = taskWatchdogService(db, { enqueueWakeup });
   let unsafeTextProjectionPromise: Promise<boolean> | null = null;
 
@@ -11593,6 +11595,10 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     return productivityReviews.reconcileProductivityReviews({ ...opts, issueCreatedAtGte: await getWorktreeExecutionCutoff() });
   }
 
+  async function reconcileImprovementProposals(opts?: { now?: Date; companyId?: string }) {
+    return improvementProposals.reconcileImprovementProposals(opts);
+  }
+
   async function reconcileTaskWatchdogs(opts?: { companyId?: string | null; runId?: string | null }) {
     return taskWatchdogs.reconcileTaskWatchdogs({ ...opts, issueCreatedAtGte: await getWorktreeExecutionCutoff() });
   }
@@ -16959,6 +16965,8 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
     scanSilentActiveRuns,
 
     reconcileProductivityReviews,
+
+    reconcileImprovementProposals,
 
     reconcileTaskWatchdogs,
 
