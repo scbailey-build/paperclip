@@ -1022,6 +1022,7 @@ export type ToolAccessReasonCode =
   | "requires_review_changed_tool"
   | "requires_approval_policy"
   | "deny_default"
+  | "deny_undecided"
   | "deny_company_boundary"
   | "deny_disabled_connection"
   | "deny_disabled_application"

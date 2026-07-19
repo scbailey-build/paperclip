@@ -231,6 +231,17 @@ export function toolAccessRoutes(
     });
   });
 
+  router.get("/companies/:companyId/tools/coverage", async (req, res) => {
+    assertBoard(req);
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    if (!options.toolGateway) {
+      res.status(501).json({ error: "Tool gateway service is not configured" });
+      return;
+    }
+    res.json(await options.toolGateway.toolPolicyCoverage(companyId));
+  });
+
   router.post("/companies/:companyId/tools/apps/connect", validate(connectToolAppSchema), async (req, res) => {
     const companyId = req.params.companyId as string;
     assertToolAppMutationAccess(req, companyId);

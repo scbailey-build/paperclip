@@ -110,6 +110,7 @@ describe("paperclip MCP tools", () => {
       priority: "medium",
       assigneeAgentId: "22222222-2222-2222-2222-222222222222",
       requestDepth: 0,
+      allowDuplicate: false,
     });
   });
 
@@ -396,5 +397,34 @@ describe("paperclip MCP tools", () => {
     });
 
     expect(response.content[0]?.text).toContain("must not contain '..'");
+  });
+
+  it("denies paperclipApiRequest for non-CEO agents before proxying", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      mockJsonResponse({ id: "agent-1", role: "general" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tool = getTool("paperclipApiRequest");
+    const response = await tool.execute({ method: "GET", path: "/issues" });
+
+    expect(response.content[0]?.text).toContain("limited to CEO-role agents");
+    // Only the /agents/me role lookup fired; the proxied request never did.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/agents/me");
+  });
+
+  it("allows paperclipApiRequest for CEO-role agents", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockJsonResponse({ id: "agent-1", role: "ceo" }))
+      .mockResolvedValueOnce(mockJsonResponse([{ id: "issue-1" }]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tool = getTool("paperclipApiRequest");
+    const response = await tool.execute({ method: "GET", path: "/issues" });
+
+    expect(response.content[0]?.text).toContain("issue-1");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/issues");
   });
 });

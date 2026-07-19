@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArchiveRestore, MoreHorizontal, Plus, ShieldCheck, Users } from "lucide-react";
 import type { ToolProfileWithDetails } from "@paperclipai/shared";
 import { useNavigate } from "@/lib/router";
@@ -175,6 +175,8 @@ export function ProfilesIndex({
   return (
     <div className="space-y-5">
       {header}
+
+      <CoverageBanner companyId={companyId} />
 
       <div className="inline-flex rounded-md border border-border p-0.5">
         {(["active", "archived"] as const).map((key) => (
@@ -393,6 +395,54 @@ function EmptyTemplatePicker({ onPick }: { onPick: (key: TemplateKey) => void })
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Tri-state coverage ledger: tools no active profile has explicitly
+ * classified are open decisions — denied at runtime, listed here until
+ * someone decides them.
+ */
+function CoverageBanner({ companyId }: { companyId: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const coverage = useQuery({
+    queryKey: queryKeys.tools.coverage(companyId),
+    queryFn: () => toolsApi.coverage(companyId),
+  });
+  const data = coverage.data;
+  if (!data || data.undecidedCount === 0) return null;
+  const shown = expanded ? data.undecided : data.undecided.slice(0, 8);
+  return (
+    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-600/40 dark:bg-amber-500/5">
+      <p className="font-medium text-amber-700 dark:text-amber-400">
+        {data.undecidedCount} of {data.totalTools} registered tools are undecided
+      </p>
+      <p className="mt-0.5 text-muted-foreground">
+        No active profile classifies these tools, so they are denied by default — each one is an
+        open decision, not a settled one. Add an include or exclude entry to a profile to decide.
+      </p>
+      <ul className="mt-2 flex flex-wrap gap-1.5">
+        {shown.map((tool) => (
+          <li
+            key={tool.name}
+            className="rounded border border-amber-300/60 px-1.5 py-0.5 font-mono text-xs text-amber-800 dark:border-amber-600/40 dark:text-amber-300"
+            title={tool.applicationDisplayName ?? tool.providerType}
+          >
+            {tool.displayName || tool.name}
+            <span className="ml-1 text-amber-600/70 dark:text-amber-400/60">{tool.risk}</span>
+          </li>
+        ))}
+      </ul>
+      {data.undecided.length > 8 && (
+        <button
+          type="button"
+          className="mt-1.5 text-xs font-medium text-amber-700 underline dark:text-amber-400"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Show fewer" : `Show all ${data.undecidedCount}`}
+        </button>
+      )}
     </div>
   );
 }

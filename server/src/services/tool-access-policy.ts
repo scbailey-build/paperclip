@@ -1263,13 +1263,23 @@ export function toolAccessPolicyService(db: Db) {
       list.push(entry);
       entriesByProfile.set(entry.profileId, list);
     }
+    let explicitlyClassified = profileState.profiles.length === 0;
     for (const profile of profileState.profiles) {
       const entries = entriesByProfile.get(profile.id) ?? [];
       const matchingEntries = entries.filter((entry) => profileEntryMatches(entry, ctx));
+      if (matchingEntries.length > 0) explicitlyClassified = true;
       if (matchingEntries.some((entry) => entry.effect === "exclude")) continue;
       if (profile.defaultAction === "allow" || matchingEntries.some((entry) => entry.effect === "include")) {
         return decision("allow", "allow_profile", "Tool access allowed by effective profile.", effectiveProfileIds, [], { redactionPlan: redaction.redactionPlan });
       }
+    }
+
+    // Tri-state ledger: a tool that fell through with NO explicit entry in any
+    // effective profile was never decided — it is denied like deny_default, but
+    // recorded distinctly so the coverage view can surface it as an open
+    // decision instead of a settled one.
+    if (!explicitlyClassified) {
+      return decision("deny", "deny_undecided", "No effective tool profile classifies this tool; denied pending an explicit decision.", effectiveProfileIds, [], { redactionPlan: redaction.redactionPlan });
     }
 
     return decision("deny", "deny_default", "No effective tool profile, grant, or allow policy permits this call.", effectiveProfileIds, [], { redactionPlan: redaction.redactionPlan });

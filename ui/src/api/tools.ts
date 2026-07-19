@@ -230,10 +230,26 @@ export type ToolPolicyTestResponse = {
   auditEvent: unknown | null;
 };
 
+export interface ToolPolicyCoverage {
+  totalTools: number;
+  classifiedCount: number;
+  undecidedCount: number;
+  activeProfileCount: number;
+  undecided: Array<{
+    name: string;
+    displayName: string;
+    providerType: string;
+    risk: string;
+    applicationDisplayName: string | null;
+  }>;
+}
+
 export const toolsApi = {
   // --- Applications ---
   listGallery: (companyId: string) =>
     api.get<ToolGalleryResponse>(`/companies/${companyId}/tools/gallery`),
+  coverage: (companyId: string) =>
+    api.get<ToolPolicyCoverage>(`/companies/${companyId}/tools/coverage`),
   connectApp: (companyId: string, input: {
     galleryKey?: string;
     link?: string;

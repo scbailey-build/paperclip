@@ -619,11 +619,20 @@ export function createToolDefinitions(client: PaperclipApiClient): ToolDefinitio
     ),
     makeTool(
       "paperclipApiRequest",
-      "Make a JSON request to an existing Paperclip /api endpoint for unsupported operations",
+      "Make a JSON request to an existing Paperclip /api endpoint for unsupported operations (CEO-role agents only)",
       apiRequestSchema,
       async ({ method, path, jsonBody }) => {
         if (!path.startsWith("/") || path.includes("..")) {
           throw new Error("path must start with / and be relative to /api, and must not contain '..'");
+        }
+        // This tool is an any-endpoint escape hatch that bypasses per-tool
+        // policy, so it defaults to deny for everyone but CEO-role agents.
+        const me = (await client.requestJson("GET", "/agents/me")) as { role?: string } | null;
+        const role = typeof me?.role === "string" ? me.role.trim().toLowerCase() : null;
+        if (role !== "ceo") {
+          throw new Error(
+            "paperclipApiRequest is denied for this agent: the raw API escape hatch is limited to CEO-role agents. Use the purpose-specific paperclip* tools instead.",
+          );
         }
         return client.requestJson(method, path, {
           body: parseOptionalJson(jsonBody),
