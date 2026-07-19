@@ -1,11 +1,13 @@
 export type NormalizedAgentPermissions = Record<string, unknown> & {
   canCreateAgents: boolean;
+  canCreateSkills: boolean;
   recommendOnly: boolean;
 };
 
 export function defaultPermissionsForRole(role: string): NormalizedAgentPermissions {
   return {
-    canCreateAgents: role === "ceo",
+    canCreateAgents: role.trim().toLowerCase() === "ceo",
+    canCreateSkills: true,
     recommendOnly: false,
   };
 }
@@ -20,11 +22,17 @@ export function normalizeAgentPermissions(
   }
 
   const record = permissions as Record<string, unknown>;
+  const preserved = { ...record };
   return {
+    ...preserved,
     canCreateAgents:
       typeof record.canCreateAgents === "boolean"
         ? record.canCreateAgents
         : defaults.canCreateAgents,
+    canCreateSkills:
+      typeof record.canCreateSkills === "boolean"
+        ? record.canCreateSkills
+        : defaults.canCreateSkills,
     recommendOnly:
       typeof record.recommendOnly === "boolean" ? record.recommendOnly : defaults.recommendOnly,
   };
