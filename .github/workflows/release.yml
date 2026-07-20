@@ -26,14 +26,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Fork carry: canary publishing needs npm credentials that only exist on the
+  # upstream repo, so gate push-triggered jobs to avoid a red X on every merge.
   verify_canary:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.repository == 'paperclipai/paperclip'
     uses: ./.github/workflows/release-verify.yml
     with:
       ref: ${{ github.sha }}
 
   publish_canary:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.repository == 'paperclipai/paperclip'
     needs: verify_canary
     runs-on: ubuntu-latest
     timeout-minutes: 45
